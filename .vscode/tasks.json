@@ -78,6 +78,16 @@
             }
         },
         {
+            "label": "registro",
+            "type": "shell",
+            "command": "source devel/setup.bash && rosrun registro registro_node",
+            "problemMatcher": [],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
             "label": "rviz",
             "type": "shell",
             "command": "rviz",
