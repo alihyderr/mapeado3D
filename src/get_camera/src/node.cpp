@@ -14,7 +14,7 @@ ros::Publisher publisher;
 
 void callback(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& msg)
 {
-	std::cout << "asdasd\n";
+	//std::cout << "asdasd\n";
 	sensor_msgs::PointCloud2 cloud_msg;
 	pcl::toROSMsg( *msg, cloud_msg );
 	publisher.publish( cloud_msg );

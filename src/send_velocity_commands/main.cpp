@@ -24,9 +24,8 @@ public:
   {
     nh_ = nh;
     //set up the publisher for the cmd_vel topic
-    ///robot1/mobile_base/commands/velocity
     cmd_stamp_pub_ = nh_.advertise<geometry_msgs::TwistStamped>("chatter", 1);
-    cmd_pub_ = nh_stamp_.advertise<geometry_msgs::Twist>("/robot1/mobile_base/commands/velocity", 1);
+    cmd_pub_ = nh_stamp_.advertise<geometry_msgs::Twist>("/mobile_base/commands/velocity", 1);
     teclas_[0] = 'w'; // delante
     teclas_[1] = 'a'; // izquierda
     teclas_[2] = 'd'; // derecha

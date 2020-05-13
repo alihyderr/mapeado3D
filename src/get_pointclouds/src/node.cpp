@@ -3,8 +3,8 @@
 #include <pcl_ros/point_cloud.h>
 #include <pcl/point_types.h>
 #include <boost/foreach.hpp>
-#include <pcl/visualization/pcl_visualizer.h>
-#include <pcl/visualization/cloud_viewer.h>
+//#include <pcl/visualization/pcl_visualizer.h>
+//#include <pcl/visualization/cloud_viewer.h>
 #include <pcl/filters/voxel_grid.h>
 // synchronizer
 #include <message_filters/subscriber.h>
@@ -17,6 +17,7 @@
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/point_cloud_conversion.h>
 
+/*
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr visu_pc(new pcl::PointCloud<pcl::PointXYZRGB>);
 
 void simpleVis()
@@ -28,33 +29,27 @@ void simpleVis()
 		boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
 	}
 }
+*/
 
 //void callback(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr &msg, const sensor_msgs::JoyConstPtr &twistStamped)
-void callback(const sensor_msgs::PointCloud2ConstPtr& msg, const sensor_msgs::JoyConstPtr& twistStamped)
+void callback(const sensor_msgs::PointCloud2ConstPtr &msg, const sensor_msgs::JoyConstPtr &twistStamped)
 {
-	//printf( "%f ", msg->points[0].x );
-	//std::cout << "callback\n";
-	//sensor_msgs::PointCloud2 output;
-	//sensor_msgs::convertPointCloudToPointCloud2( *msg, output );
-
 	pcl::PointCloud<pcl::PointXYZRGB> pointcloud;
-	pcl::fromROSMsg( *msg, pointcloud );
+	pcl::fromROSMsg(*msg, pointcloud);
 
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>(pointcloud));
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZRGB>);
-	
-	cout << "Puntos capturados: " << cloud->size() << endl;
+
+	std::cout << "Puntos capturados: " << cloud->size() << std::endl;
 
 	pcl::VoxelGrid<pcl::PointXYZRGB> vGrid;
 	vGrid.setInputCloud(cloud);
 	vGrid.setLeafSize(0.05f, 0.05f, 0.05f);
 	vGrid.filter(*cloud_filtered);
 
-	cout << "Puntos tras VG: " << cloud_filtered->size() << endl;
+	std::cout << "Puntos tras VG: " << cloud_filtered->size() << std::endl;
 
-	visu_pc = cloud_filtered;
-	
-	simpleVis();
+	//visu_pc = cloud_filtered;
 }
 
 class ImageConverter
@@ -77,26 +72,16 @@ public:
 	}
 };
 
-int main(int argc, char **argv)
-{
-/*
-  ros::init(argc, argv, "sub_pcl");                                                                                                                                                                         
-  ros::NodeHandle nh;                                                                                                                                                                                       
-  ros::Subscriber sub = nh.subscribe<pcl::PointCloud<pcl::PointXYZRGB> >("/camera/depth/points", 1, callback);                                                                                              
-                                                                                                                                                                                                            
-  boost::thread t(simpleVis);                                                                                                                                                                               
-                                                                                                                                                                                                            
-  while(ros::ok())                                                                                                                                                                                          
-  {                                                                                                                                                                                                         
-        ros::spinOnce();                                                                                                                                                                                    
-  }   
-  */
-	puts( "main get_cloud" );
+int main(int argc, char **argv) {
+	puts("main get_cloud");
 	ros::init(argc, argv, "sub_pcl");
 	ImageConverter ic;
 
-	boost::thread t(simpleVis);
+	//boost::thread t(simpleVis);
 
-	ros::spin();
+	while (ros::ok()) {
+		ros::spinOnce();
+	}
+	
 	return 0;
 }

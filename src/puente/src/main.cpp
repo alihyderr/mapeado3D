@@ -90,7 +90,7 @@ private:
 public:
   ImageConverter()
   {
-    sub_image.subscribe(nh, "robot1/camera/rgb/image_raw", 1);
+    sub_image.subscribe(nh, "/camera/rgb/image_raw", 1);
     sub_twist.subscribe(nh, "chatter", 1);
     sync_.reset(new Sync(MySyncPolicy(10), sub_image, sub_twist));
     sync_->registerCallback(boost::bind(callback, _1, _2));
