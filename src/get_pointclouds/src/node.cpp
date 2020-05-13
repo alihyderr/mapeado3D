@@ -37,25 +37,29 @@ int capturas = 0;
 //void callback(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr &msg, const sensor_msgs::JoyConstPtr &twistStamped)
 void callback(const sensor_msgs::PointCloud2ConstPtr& msg, const sensor_msgs::JoyConstPtr& joy)
 {
-	pcl::PointCloud<pcl::PointXYZRGB> pointcloud;
-	pcl::fromROSMsg(*msg, pointcloud);
+	if ( joy->axes[ 5 ] == 1 ) {
+		std::cout << " nop\n";
+	} else if ( joy->axes[ 5 ] <= 0.9 && joy->axes[ 5 ] > 0){
+		pcl::PointCloud<pcl::PointXYZRGB> pointcloud;
+		pcl::fromROSMsg(*msg, pointcloud);
 
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>(pointcloud));
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZRGB>);
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>(pointcloud));
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZRGB>);
 
-	std::cout << "Puntos capturados: " << cloud->size() << std::endl;
+		std::cout << "Puntos capturados: " << cloud->size() << std::endl;
 
-	pcl::VoxelGrid<pcl::PointXYZRGB> vGrid;
-	vGrid.setInputCloud(cloud);
-	vGrid.setLeafSize(0.05f, 0.05f, 0.05f);
-	vGrid.filter(*cloud_filtered);
+		pcl::VoxelGrid<pcl::PointXYZRGB> vGrid;
+		vGrid.setInputCloud(cloud);
+		vGrid.setLeafSize(0.05f, 0.05f, 0.05f);
+		vGrid.filter(*cloud_filtered);
 
-	std::cout << "Puntos tras VG: " << cloud_filtered->size() << std::endl;
+		std::cout << "Puntos tras VG: " << cloud_filtered->size() << std::endl;
 
-	//visu_pc = cloud_filtered;
+		//visu_pc = cloud_filtered;
 
-	pcl::io::savePCDFileASCII( "test_pcd" + std::to_string( capturas++ )+ ".pcd", *cloud_filtered );
-	std::cerr << "Saved " << cloud_filtered->points.size () << " data points to " << capturas << std::endl;
+		pcl::io::savePCDFileASCII( "test_pcd" + std::to_string( capturas++ )+ ".pcd", *cloud_filtered );
+		std::cerr << "Saved " << cloud_filtered->points.size () << " data points to " << capturas << std::endl;
+	}
 }
 
 class ImageConverter
