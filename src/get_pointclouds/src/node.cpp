@@ -2,7 +2,8 @@
 // pcl
 #include <pcl_ros/point_cloud.h>
 #include <pcl/point_types.h>
-#include <boost/foreach.hpp>
+#include <pcl/io/pcd_io.h>
+//#include <boost/foreach.hpp>
 //#include <pcl/visualization/pcl_visualizer.h>
 //#include <pcl/visualization/cloud_viewer.h>
 #include <pcl/filters/voxel_grid.h>
@@ -12,10 +13,10 @@
 #include <message_filters/sync_policies/approximate_time.h>
 // msgs
 #include <sensor_msgs/Joy.h>
-#include <geometry_msgs/TwistStamped.h>
-#include <sensor_msgs/PointCloud.h>
+//#include <geometry_msgs/TwistStamped.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/point_cloud_conversion.h>
+// pcd
 
 /*
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr visu_pc(new pcl::PointCloud<pcl::PointXYZRGB>);
@@ -31,8 +32,10 @@ void simpleVis()
 }
 */
 
+int capturas = 0;
+
 //void callback(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr &msg, const sensor_msgs::JoyConstPtr &twistStamped)
-void callback(const sensor_msgs::PointCloud2ConstPtr &msg, const sensor_msgs::JoyConstPtr &twistStamped)
+void callback(const sensor_msgs::PointCloud2ConstPtr& msg, const sensor_msgs::JoyConstPtr& joy)
 {
 	pcl::PointCloud<pcl::PointXYZRGB> pointcloud;
 	pcl::fromROSMsg(*msg, pointcloud);
@@ -50,6 +53,9 @@ void callback(const sensor_msgs::PointCloud2ConstPtr &msg, const sensor_msgs::Jo
 	std::cout << "Puntos tras VG: " << cloud_filtered->size() << std::endl;
 
 	//visu_pc = cloud_filtered;
+
+	pcl::io::savePCDFileASCII( "test_pcd" + std::to_string( capturas++ )+ ".pcd", *cloud_filtered );
+	std::cerr << "Saved " << cloud_filtered->points.size () << " data points to " << capturas << std::endl;
 }
 
 class ImageConverter

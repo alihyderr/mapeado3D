@@ -30,7 +30,7 @@
         {
             "label": "load_model",
             "type": "shell",
-            "command": "source devel/setup.bash && roslaunch -r load_model init.launch",
+            "command": "source devel/setup.bash && roslaunch load_model init.launch",
             "problemMatcher": [],
             "group": {
                 "kind": "test",
