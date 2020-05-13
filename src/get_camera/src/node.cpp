@@ -3,7 +3,6 @@
 #include <pcl/point_types.h>
 #include <boost/foreach.hpp>
 #include <pcl/visualization/pcl_visualizer.h>
-#include <pcl/visualization/cloud_viewer.h>
 #include <pcl/filters/voxel_grid.h>
 
 #include <sensor_msgs/PointCloud.h>
@@ -14,9 +13,14 @@ ros::Publisher publisher;
 
 void callback(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& msg)
 {
-	//std::cout << "asdasd\n";
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZRGB>);
+	pcl::VoxelGrid<pcl::PointXYZRGB> vGrid;
+	vGrid.setInputCloud(msg);
+	vGrid.setLeafSize(0.05f, 0.05f, 0.05f);
+	vGrid.filter(*cloud_filtered);
+
 	sensor_msgs::PointCloud2 cloud_msg;
-	pcl::toROSMsg( *msg, cloud_msg );
+	pcl::toROSMsg( *cloud_filtered, cloud_msg );
 	publisher.publish( cloud_msg );
 }
 

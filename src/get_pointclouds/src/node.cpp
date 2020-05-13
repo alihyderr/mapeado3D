@@ -44,21 +44,20 @@ void callback(const sensor_msgs::PointCloud2ConstPtr& msg, const sensor_msgs::Jo
 		pcl::fromROSMsg(*msg, pointcloud);
 
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>(pointcloud));
+		
+		//std::cout << "Puntos capturados: " << cloud->size() << std::endl;
+
+		/* 
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZRGB>);
-
-		std::cout << "Puntos capturados: " << cloud->size() << std::endl;
-
 		pcl::VoxelGrid<pcl::PointXYZRGB> vGrid;
 		vGrid.setInputCloud(cloud);
 		vGrid.setLeafSize(0.05f, 0.05f, 0.05f);
 		vGrid.filter(*cloud_filtered);
-
 		std::cout << "Puntos tras VG: " << cloud_filtered->size() << std::endl;
+		visu_pc = cloud_filtered; */
 
-		//visu_pc = cloud_filtered;
-
-		pcl::io::savePCDFileASCII( "test_pcd" + std::to_string( capturas++ )+ ".pcd", *cloud_filtered );
-		std::cerr << "Saved " << cloud_filtered->points.size () << " data points to " << capturas << std::endl;
+		pcl::io::savePCDFileASCII( "test_pcd" + std::to_string( capturas++ )+ ".pcd", pointcloud );
+		std::cerr << "Saved " << pointcloud.points.size () << " data points to " << capturas << std::endl;
 	}
 }
 
