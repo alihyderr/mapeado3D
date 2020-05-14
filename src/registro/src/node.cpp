@@ -14,6 +14,8 @@
 // correspondencias
 #include <pcl/registration/correspondence_estimation.h>
 #include <pcl/registration/correspondence_rejection_sample_consensus.h>
+// transformación
+#include <pcl/registration/transformation_estimation_svd.h>
 
 void computeSiftKeypoints( pcl::PointCloud<pcl::PointXYZ>::Ptr keypoints, const long unsigned int& file_id, const unsigned int visualization = 0 ) {
 	// Parameters for sift computation
@@ -23,7 +25,7 @@ void computeSiftKeypoints( pcl::PointCloud<pcl::PointXYZ>::Ptr keypoints, const 
 	const float min_contrast = 0.5f;
 
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
-	pcl::io::loadPCDFile<pcl::PointXYZRGB> ("test_pcd0.pcd", *cloud);
+	pcl::io::loadPCDFile<pcl::PointXYZRGB> ("test_pcd" + std::to_string( file_id ) + ".pcd", *cloud);
 
 	// Estimate the sift interest points using Intensity values from RGB values
 	pcl::SIFTKeypoint<pcl::PointXYZRGB, pcl::PointWithScale> sift;
@@ -141,8 +143,8 @@ int main(int argc, char **argv) {
 
 	pcl::PointCloud<pcl::PointXYZ>::Ptr sift_keypoints1 ( new pcl::PointCloud<pcl::PointXYZ>() );
 	pcl::PointCloud<pcl::PointXYZ>::Ptr sift_keypoints2 ( new pcl::PointCloud<pcl::PointXYZ>() );
-	computeSiftKeypoints( sift_keypoints1, 1, false );
-	computeSiftKeypoints( sift_keypoints2, 1, false );
+	computeSiftKeypoints( sift_keypoints1, 0, true );
+	computeSiftKeypoints( sift_keypoints2, 9, true );
 	
 	pcl::PointCloud<pcl::FPFHSignature33>::Ptr pfph_features1 (new pcl::PointCloud<pcl::FPFHSignature33>);
 	pcl::PointCloud<pcl::FPFHSignature33>::Ptr pfph_features2 (new pcl::PointCloud<pcl::FPFHSignature33>);
@@ -157,6 +159,41 @@ int main(int argc, char **argv) {
 	pcl::CorrespondencesPtr remaining_correspondences ( new pcl::Correspondences() );
 	rejectCorrespondences( *remaining_correspondences, correspondences, sift_keypoints1, sift_keypoints2 );
 	std::cout << "remaining_correspondences size: " << remaining_correspondences->size() << '\n';
+
+	Eigen::Matrix4f transform;
+	pcl::registration::TransformationEstimationSVD<pcl::PointXYZ, pcl::PointXYZ> svd;
+    svd.estimateRigidTransformation(*sift_keypoints1, *sift_keypoints2, *remaining_correspondences, transform);
+	std::cout << "matriz transformacion:\n" << transform << std::endl;
+
+	pcl::PointCloud<pcl::PointXYZ>::Ptr src (new pcl::PointCloud<pcl::PointXYZ>);
+	pcl::PointCloud<pcl::PointXYZ>::Ptr tgt (new pcl::PointCloud<pcl::PointXYZ>);
+	pcl::io::loadPCDFile<pcl::PointXYZ> ("test_pcd" + std::to_string( 0 ) + ".pcd", *src);
+	pcl::io::loadPCDFile<pcl::PointXYZ> ("test_pcd" + std::to_string( 3 ) + ".pcd", *tgt);
+
+	pcl::visualization::PCLVisualizer corresp_viewer("Correspondences Viewer");
+    corresp_viewer.setBackgroundColor(0, 0, 0);
+    corresp_viewer.addPointCloud(src, "Src cloud");
+    corresp_viewer.addPointCloud(tgt, "Tgt cloud");
+    corresp_viewer.addPointCloud<pcl::PointXYZ>(sift_keypoints1, "src");
+    corresp_viewer.addPointCloud<pcl::PointXYZ>(sift_keypoints2, "tgt");
+    corresp_viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "src");
+    corresp_viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "tgt");
+
+    for (unsigned int i = 0; i < remaining_correspondences->size(); ++i) 
+	{
+        pcl::PointXYZ& src_idx = src->points[(*remaining_correspondences)[i].index_query];
+        pcl::PointXYZ& tgt_idx = tgt->points[(*remaining_correspondences)[i].index_match];
+        std::string lineID =  std::to_string(i);
+        std::string lineID2 = std::to_string(i+700);
+
+        corresp_viewer.addLine<pcl::PointXYZ, pcl::PointXYZ>(src_idx, tgt_idx, 0.965116, 1, 0.895349, lineID);
+    }
+
+	while (!corresp_viewer.wasStopped()) {
+			corresp_viewer.spinOnce();
+	}
+
+	corresp_viewer.close();
 
 	return 0;
 }
