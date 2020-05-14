@@ -13,6 +13,7 @@
 #include <pcl/features/normal_3d.h>
 // correspondencias
 #include <pcl/registration/correspondence_estimation.h>
+#include <pcl/registration/correspondence_rejection_sample_consensus.h>
 
 void computeSiftKeypoints( pcl::PointCloud<pcl::PointXYZ>::Ptr keypoints, const long unsigned int& file_id, const unsigned int visualization = 0 ) {
 	// Parameters for sift computation
@@ -111,6 +112,29 @@ void findCorrespondences(
     est.determineReciprocalCorrespondences(all_correspondences);
 }
 
+void rejectCorrespondences( 
+	pcl::Correspondences& remaining_correspondences,
+	pcl::CorrespondencesPtr correspondences,
+	const pcl::PointCloud<pcl::PointXYZ>::Ptr sift_keypoints1,
+	const pcl::PointCloud<pcl::PointXYZ>::Ptr sift_keypoints2) {
+
+    // copy only XYZRGB data of keypoints for use in estimating features
+    pcl::PointCloud <pcl::PointXYZRGB>::Ptr keypoints_src(new pcl::PointCloud <pcl::PointXYZRGB>);
+    pcl::PointCloud <pcl::PointXYZRGB>::Ptr keypoints_tgt(new pcl::PointCloud <pcl::PointXYZRGB>);
+    pcl::copyPointCloud(*sift_keypoints1, *keypoints_src);
+    pcl::copyPointCloud(*sift_keypoints2, *keypoints_tgt);
+
+    // RandomSampleConsensus bad correspondence rejector
+    pcl::registration::CorrespondenceRejectorSampleConsensus <pcl::PointXYZRGB> rejector;
+    rejector.setInputSource (keypoints_src);
+    rejector.setInputTarget (keypoints_tgt);
+    rejector.setInlierThreshold(0.1);
+    rejector.setMaximumIterations(5000);
+    rejector.setRefineModel(true);
+    rejector.setInputCorrespondences(correspondences);
+    rejector.getCorrespondences(remaining_correspondences);	
+}
+
 int main(int argc, char **argv) {
 
 	ros::init(argc, argv, "registro");
@@ -125,10 +149,14 @@ int main(int argc, char **argv) {
 	computeFPFHFeatures( pfph_features1, sift_keypoints1 );
 	computeFPFHFeatures( pfph_features2, sift_keypoints2 );
 
- 	pcl::Correspondences correspondences;
-	findCorrespondences( pfph_features1, pfph_features2, correspondences );
-	
-	
+ 	//pcl::Correspondences correspondences;
+	boost::shared_ptr<pcl::Correspondences> correspondences ( new pcl::Correspondences() );
+	findCorrespondences( pfph_features1, pfph_features2, *correspondences );
+	std::cout << "correspondences size: " << correspondences->size() << '\n';
+
+	pcl::CorrespondencesPtr remaining_correspondences ( new pcl::Correspondences() );
+	rejectCorrespondences( *remaining_correspondences, correspondences, sift_keypoints1, sift_keypoints2 );
+	std::cout << "remaining_correspondences size: " << remaining_correspondences->size() << '\n';
 
 	return 0;
 }
