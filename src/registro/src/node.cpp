@@ -11,6 +11,8 @@
 // fpfh
 #include <pcl/features/fpfh.h>
 #include <pcl/features/normal_3d.h>
+// correspondencias
+#include <pcl/registration/correspondence_estimation.h>
 
 void computeSiftKeypoints( pcl::PointCloud<pcl::PointXYZ>::Ptr keypoints, const long unsigned int& file_id, const unsigned int visualization = 0 ) {
 	// Parameters for sift computation
@@ -98,16 +100,34 @@ void computeFPFHFeatures( pcl::PointCloud<pcl::FPFHSignature33>::Ptr pfh_feature
 	std::cout << descriptor << std::endl;
 }
 
+void findCorrespondences(
+	pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfh_src,
+    pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfh_tgt,
+    pcl::Correspondences& all_correspondences) {
+
+    pcl::registration::CorrespondenceEstimation<pcl::FPFHSignature33, pcl::FPFHSignature33> est;
+    est.setInputSource(fpfh_src);
+    est.setInputTarget(fpfh_tgt);
+    est.determineReciprocalCorrespondences(all_correspondences);
+}
+
 int main(int argc, char **argv) {
 
 	ros::init(argc, argv, "registro");
 
-	pcl::PointCloud<pcl::PointXYZ>::Ptr sift_keypoints ( new pcl::PointCloud<pcl::PointXYZ>() );
-	computeSiftKeypoints( sift_keypoints, 1, false );
+	pcl::PointCloud<pcl::PointXYZ>::Ptr sift_keypoints1 ( new pcl::PointCloud<pcl::PointXYZ>() );
+	pcl::PointCloud<pcl::PointXYZ>::Ptr sift_keypoints2 ( new pcl::PointCloud<pcl::PointXYZ>() );
+	computeSiftKeypoints( sift_keypoints1, 1, false );
+	computeSiftKeypoints( sift_keypoints2, 1, false );
 	
-	pcl::PointCloud<pcl::FPFHSignature33>::Ptr pfh_features (new pcl::PointCloud<pcl::FPFHSignature33>);
-	computeFPFHFeatures( pfh_features, sift_keypoints );
+	pcl::PointCloud<pcl::FPFHSignature33>::Ptr pfph_features1 (new pcl::PointCloud<pcl::FPFHSignature33>);
+	pcl::PointCloud<pcl::FPFHSignature33>::Ptr pfph_features2 (new pcl::PointCloud<pcl::FPFHSignature33>);
+	computeFPFHFeatures( pfph_features1, sift_keypoints1 );
+	computeFPFHFeatures( pfph_features2, sift_keypoints2 );
 
+ 	pcl::Correspondences correspondences;
+	findCorrespondences( pfph_features1, pfph_features2, correspondences );
+	
 	
 
 	return 0;
