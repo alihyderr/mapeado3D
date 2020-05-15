@@ -17,7 +17,11 @@
 // transformación
 #include <pcl/registration/transformation_estimation_svd.h>
 
-void computeSiftKeypoints( pcl::PointCloud<pcl::PointXYZ>::Ptr keypoints, const long unsigned int& file_id, const unsigned int visualization = 0 ) {
+void computeSiftKeypoints(
+	pcl::PointCloud<pcl::PointXYZ>::Ptr& keypoints, 
+	const size_t& file_id, 
+	const size_t& visualization = 0 )
+{
 	// Parameters for sift computation
 	const float min_scale = 0.1f;
 	const int n_octaves = 6;
@@ -42,9 +46,8 @@ void computeSiftKeypoints( pcl::PointCloud<pcl::PointXYZ>::Ptr keypoints, const 
 	copyPointCloud(result, *keypoints);
 
 	if ( visualization != 0 ) {
-
-		std::cout << "Resulting sift points are of size: " << keypoints->points.size () <<std::endl;
-		pcl::io::savePCDFileASCII("sift_points.pcd", *keypoints);
+		//std::cout << "Resulting sift points are of size: " << keypoints->points.size () <<std::endl;
+		//pcl::io::savePCDFileASCII("sift_points.pcd", *keypoints);
 
 		// Visualization of keypoints along with the original cloud
 		pcl::visualization::PCLVisualizer viewer("PCL Viewer");
@@ -61,7 +64,10 @@ void computeSiftKeypoints( pcl::PointCloud<pcl::PointXYZ>::Ptr keypoints, const 
 	}
 }
 
-void computeFPFHFeatures( pcl::PointCloud<pcl::FPFHSignature33>::Ptr pfh_features, pcl::PointCloud<pcl::PointXYZ>::Ptr keypoints ) {
+void computeFPFHFeatures(
+	pcl::PointCloud<pcl::FPFHSignature33>::Ptr& pfh_features, 
+	const pcl::PointCloud<pcl::PointXYZ>::Ptr& keypoints ) 
+{
 	std::cout << "Loaded " << keypoints->points.size () << " points." << std::endl;
 	
 	// Compute the normals
@@ -104,8 +110,8 @@ void computeFPFHFeatures( pcl::PointCloud<pcl::FPFHSignature33>::Ptr pfh_feature
 }
 
 void findCorrespondences(
-	pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfh_src,
-    pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfh_tgt,
+	const pcl::PointCloud<pcl::FPFHSignature33>::Ptr& fpfh_src,
+    const pcl::PointCloud<pcl::FPFHSignature33>::Ptr& fpfh_tgt,
     pcl::Correspondences& all_correspondences) {
 
     pcl::registration::CorrespondenceEstimation<pcl::FPFHSignature33, pcl::FPFHSignature33> est;
@@ -116,9 +122,9 @@ void findCorrespondences(
 
 void rejectCorrespondences( 
 	pcl::Correspondences& remaining_correspondences,
-	pcl::CorrespondencesPtr correspondences,
-	const pcl::PointCloud<pcl::PointXYZ>::Ptr sift_keypoints1,
-	const pcl::PointCloud<pcl::PointXYZ>::Ptr sift_keypoints2) {
+	const pcl::CorrespondencesPtr& correspondences,
+	const pcl::PointCloud<pcl::PointXYZ>::Ptr& sift_keypoints1,
+	const pcl::PointCloud<pcl::PointXYZ>::Ptr& sift_keypoints2) {
 
     // copy only XYZRGB data of keypoints for use in estimating features
     pcl::PointCloud <pcl::PointXYZRGB>::Ptr keypoints_src(new pcl::PointCloud <pcl::PointXYZRGB>);
@@ -137,38 +143,16 @@ void rejectCorrespondences(
     rejector.getCorrespondences(remaining_correspondences);	
 }
 
-int main(int argc, char **argv) {
-
-	ros::init(argc, argv, "registro");
-
-	pcl::PointCloud<pcl::PointXYZ>::Ptr sift_keypoints1 ( new pcl::PointCloud<pcl::PointXYZ>() );
-	pcl::PointCloud<pcl::PointXYZ>::Ptr sift_keypoints2 ( new pcl::PointCloud<pcl::PointXYZ>() );
-	computeSiftKeypoints( sift_keypoints1, 0, true );
-	computeSiftKeypoints( sift_keypoints2, 9, true );
-	
-	pcl::PointCloud<pcl::FPFHSignature33>::Ptr pfph_features1 (new pcl::PointCloud<pcl::FPFHSignature33>);
-	pcl::PointCloud<pcl::FPFHSignature33>::Ptr pfph_features2 (new pcl::PointCloud<pcl::FPFHSignature33>);
-	computeFPFHFeatures( pfph_features1, sift_keypoints1 );
-	computeFPFHFeatures( pfph_features2, sift_keypoints2 );
-
- 	//pcl::Correspondences correspondences;
-	boost::shared_ptr<pcl::Correspondences> correspondences ( new pcl::Correspondences() );
-	findCorrespondences( pfph_features1, pfph_features2, *correspondences );
-	std::cout << "correspondences size: " << correspondences->size() << '\n';
-
-	pcl::CorrespondencesPtr remaining_correspondences ( new pcl::Correspondences() );
-	rejectCorrespondences( *remaining_correspondences, correspondences, sift_keypoints1, sift_keypoints2 );
-	std::cout << "remaining_correspondences size: " << remaining_correspondences->size() << '\n';
-
-	Eigen::Matrix4f transform;
-	pcl::registration::TransformationEstimationSVD<pcl::PointXYZ, pcl::PointXYZ> svd;
-    svd.estimateRigidTransformation(*sift_keypoints1, *sift_keypoints2, *remaining_correspondences, transform);
-	std::cout << "matriz transformacion:\n" << transform << std::endl;
-
+void correspondancesViewer(const pcl::PointCloud<pcl::PointXYZ>::Ptr& sift_keypoints1, 
+			const pcl::PointCloud<pcl::PointXYZ>::Ptr& sift_keypoints2, 
+			const pcl::CorrespondencesPtr& remaining_correspondences,
+			const size_t id1,
+			const size_t id2) 
+{
 	pcl::PointCloud<pcl::PointXYZ>::Ptr src (new pcl::PointCloud<pcl::PointXYZ>);
 	pcl::PointCloud<pcl::PointXYZ>::Ptr tgt (new pcl::PointCloud<pcl::PointXYZ>);
-	pcl::io::loadPCDFile<pcl::PointXYZ> ("test_pcd" + std::to_string( 0 ) + ".pcd", *src);
-	pcl::io::loadPCDFile<pcl::PointXYZ> ("test_pcd" + std::to_string( 3 ) + ".pcd", *tgt);
+	pcl::io::loadPCDFile<pcl::PointXYZ> ("test_pcd" + std::to_string( id1 ) + ".pcd", *src);
+	pcl::io::loadPCDFile<pcl::PointXYZ> ("test_pcd" + std::to_string( id2 ) + ".pcd", *tgt);
 
 	pcl::visualization::PCLVisualizer corresp_viewer("Correspondences Viewer");
     corresp_viewer.setBackgroundColor(0, 0, 0);
@@ -179,7 +163,7 @@ int main(int argc, char **argv) {
     corresp_viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "src");
     corresp_viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "tgt");
 
-    for (unsigned int i = 0; i < remaining_correspondences->size(); ++i) 
+    for (auto i = 0; i < remaining_correspondences->size(); ++i) 
 	{
         pcl::PointXYZ& src_idx = src->points[(*remaining_correspondences)[i].index_query];
         pcl::PointXYZ& tgt_idx = tgt->points[(*remaining_correspondences)[i].index_match];
@@ -194,6 +178,68 @@ int main(int argc, char **argv) {
 	}
 
 	corresp_viewer.close();
+}
+
+
+void computeIteration(
+	const size_t& i,
+	pcl::PointCloud<pcl::PointXYZ>::Ptr& M,
+	Eigen::Matrix4f& Tt)
+{
+	// Pasos 4 y 5: Obtener características de Ct Ct+1
+	pcl::PointCloud<pcl::PointXYZ>::Ptr sift_keypoints1 ( new pcl::PointCloud<pcl::PointXYZ>() );
+	pcl::PointCloud<pcl::PointXYZ>::Ptr sift_keypoints2 ( new pcl::PointCloud<pcl::PointXYZ>() );
+	computeSiftKeypoints( sift_keypoints1, i, false );
+	computeSiftKeypoints( sift_keypoints2, i+1, false );
+	
+	// Descriptores de las características con PFPH
+	pcl::PointCloud<pcl::FPFHSignature33>::Ptr pfph_features1 (new pcl::PointCloud<pcl::FPFHSignature33>);
+	pcl::PointCloud<pcl::FPFHSignature33>::Ptr pfph_features2 (new pcl::PointCloud<pcl::FPFHSignature33>);
+	computeFPFHFeatures( pfph_features1, sift_keypoints1 );
+	computeFPFHFeatures( pfph_features2, sift_keypoints2 );
+	
+	// Paso 6: Obtener emparejamientos
+	boost::shared_ptr<pcl::Correspondences> correspondences ( new pcl::Correspondences() );
+	findCorrespondences( pfph_features1, pfph_features2, *correspondences );
+	std::cout << "correspondences size: " << correspondences->size() << '\n';
+	// eliminar correspondencias no válidas con RANSAC
+	pcl::CorrespondencesPtr remaining_correspondences ( new pcl::Correspondences() );
+	rejectCorrespondences( *remaining_correspondences, correspondences, sift_keypoints1, sift_keypoints2 );
+	std::cout << "remaining_correspondences size: " << remaining_correspondences->size() << '\n';
+	correspondancesViewer(sift_keypoints1, sift_keypoints2, remaining_correspondences, i, i+1);
+	
+	// Paso 7: Obtener las mejor transformación Ti
+	Eigen::Matrix4f Ti;
+	pcl::registration::TransformationEstimationSVD<pcl::PointXYZ, pcl::PointXYZ> svd;
+	svd.estimateRigidTransformation(*sift_keypoints1, *sift_keypoints2, *remaining_correspondences, Ti);
+	std::cout << "mejor matriz transformacion:\n" << Ti << std::endl;	
+
+	// Paso 8: Obtener la transformación total
+	Tt = Tt * Ti;
+}
+
+int main(int argc, char **argv) {
+	ros::init(argc, argv, "registro");
+
+	// Mapa 3D
+	pcl::PointCloud<pcl::PointXYZ>::Ptr M( new pcl::PointCloud<pcl::PointXYZ>() );
+
+	// Tt = I
+	Eigen::Matrix4f Tt;
+	Tt << 
+		1, 0, 0, 0,
+		0, 1, 0, 0,
+		0, 0, 1, 0,
+		0, 0, 0, 1;
+	std::cout << Tt;
+
+	const size_t t = 9;
+
+	for ( auto i = 1; i < t; ++i ) {
+		computeIteration( i, M, Tt );
+	}
+
+	std::cout << "Tt\n" << Tt;
 
 	return 0;
 }
