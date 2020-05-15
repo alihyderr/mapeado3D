@@ -13,14 +13,14 @@ ros::Publisher publisher;
 
 void callback(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& msg)
 {
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZRGB>);
-	pcl::VoxelGrid<pcl::PointXYZRGB> vGrid;
-	vGrid.setInputCloud(msg);
-	vGrid.setLeafSize(0.05f, 0.05f, 0.05f);
-	vGrid.filter(*cloud_filtered);
+	//pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZRGB>);
+	//pcl::VoxelGrid<pcl::PointXYZRGB> vGrid;
+	//vGrid.setInputCloud(msg);
+	//vGrid.setLeafSize(0.05f, 0.05f, 0.05f);
+	//vGrid.filter(*cloud_filtered);
 
 	sensor_msgs::PointCloud2 cloud_msg;
-	pcl::toROSMsg( *cloud_filtered, cloud_msg );
+	pcl::toROSMsg( *msg, cloud_msg );
 	publisher.publish( cloud_msg );
 }
 

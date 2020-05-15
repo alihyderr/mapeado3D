@@ -32,7 +32,7 @@ void simpleVis()
 }
 */
 
-int capturas = 0;
+int capturas = 1;
 
 //void callback(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr &msg, const sensor_msgs::JoyConstPtr &twistStamped)
 void callback(const sensor_msgs::PointCloud2ConstPtr& msg, const sensor_msgs::JoyConstPtr& joy)
@@ -56,7 +56,7 @@ void callback(const sensor_msgs::PointCloud2ConstPtr& msg, const sensor_msgs::Jo
 		std::cout << "Puntos tras VG: " << cloud_filtered->size() << std::endl;
 		visu_pc = cloud_filtered; */
 
-		pcl::io::savePCDFileASCII( "test_pcd" + std::to_string( capturas++ )+ ".pcd", pointcloud );
+		pcl::io::savePCDFileASCII( "X" + std::to_string( capturas++ )+ ".pcd", pointcloud );
 		std::cerr << "Saved " << pointcloud.points.size () << " data points to " << capturas << std::endl;
 	}
 }
