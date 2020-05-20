@@ -5,6 +5,12 @@
 #include <geometry_msgs/TwistStamped.h>
 #include <geometry_msgs/Twist.h>
 
+#include <pcl_ros/point_cloud.h>
+#include <pcl/point_types.h>
+#include <boost/foreach.hpp>
+#include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/visualization/cloud_viewer.h>
+#include <pcl/filters/voxel_grid.h>
 
 class RobotDriver
 {
@@ -26,7 +32,7 @@ public:
     //set up the publisher for the cmd_vel topic
     ///robot1/mobile_base/commands/velocity
     cmd_stamp_pub_ = nh_.advertise<geometry_msgs::TwistStamped>("chatter", 1);
-    cmd_pub_ = nh_stamp_.advertise<geometry_msgs::Twist>("/robot1/mobile_base/commands/velocity", 1);
+    cmd_pub_ = nh_stamp_.advertise<geometry_msgs::Twist>("/mobile_base/commands/velocity", 1);
     teclas_[0] = 'w'; // delante
     teclas_[1] = 'a'; // izquierda
     teclas_[2] = 'd'; // derecha
@@ -65,18 +71,18 @@ public:
       } 
       //turn left (yaw) and drive forward at the same time
       else if(cmd[0]==teclas_[1]){
-        base_stamp_cmd.twist.angular.z = base_cmd.angular.z = 0.75;
-        base_stamp_cmd.twist.linear.x = base_cmd.linear.x = 0.25;
+        base_stamp_cmd.twist.angular.z = base_cmd.angular.z = 0.5;
       } 
       //turn right (yaw) and drive forward at the same time
       else if(cmd[0]==teclas_[2]){
-        base_stamp_cmd.twist.angular.z = base_cmd.angular.z = -0.75;
-        base_stamp_cmd.twist.linear.x = base_cmd.linear.x = 0.25;
+        base_stamp_cmd.twist.angular.z = base_cmd.angular.z = -0.5;
       } 
       //quit
       else if(cmd[0]==teclas_[3]){
         break;
       }
+
+	    ros::spinOnce();
 
       //publish the assembled command
       std::cout << 
@@ -92,12 +98,45 @@ public:
   }
 };
 
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr visu_pc (new pcl::PointCloud<pcl::PointXYZRGB>);
+
+void simpleVis ()
+{
+	pcl::visualization::CloudViewer viewer ("Simple Cloud Viewer");
+	while(!viewer.wasStopped())
+	{
+	  viewer.showCloud (visu_pc);
+	  boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+	}
+}
+
+void callback(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& msg)
+{
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB>(*msg));
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZRGB>);
+
+	cout << "Puntos capturados: " << cloud->size() << endl;
+
+	pcl::VoxelGrid<pcl::PointXYZRGB > vGrid;
+	vGrid.setInputCloud (cloud);
+	vGrid.setLeafSize (0.05f, 0.05f, 0.05f);
+	vGrid.filter (*cloud_filtered);
+
+	cout << "Puntos tras VG: " << cloud_filtered->size() << endl;
+
+	visu_pc = cloud_filtered;
+}
+
 int main(int argc, char** argv)
 {
   //init the ROS node
   ros::init(argc, argv, "robot_driver");
   ros::NodeHandle nh;
-
   RobotDriver driver(nh);
+
+	ros::NodeHandle nhCloud;
+ 	ros::Subscriber imageSub = nhCloud.subscribe<pcl::PointCloud<pcl::PointXYZRGB> >("/camera/depth/points", 1, callback);
+	boost::thread t(simpleVis);
+
   driver.driveKeyboard();
 }

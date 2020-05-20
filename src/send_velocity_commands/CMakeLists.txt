@@ -6,9 +6,12 @@ project(send_velocity_commands)
 ## is used, also find other catkin packages
 
 ## System dependencies are found with CMake's conventions
-find_package(catkin REQUIRED COMPONENTS roscpp sensor_msgs geometry_msgs std_msgs )
+find_package(catkin REQUIRED COMPONENTS roscpp sensor_msgs geometry_msgs std_msgs pcl_conversions pcl_ros)
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(OpenCV REQUIRED)
+
+FIND_PACKAGE(VTK REQUIRED)
+INCLUDE(${VTK_USE_FILE})
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
