@@ -17,6 +17,9 @@
 #include <pcl/keypoints/sift_keypoint.h>
 #include <pcl/features/fpfh.h>
 #include <pcl/kdtree/kdtree.h>
+#include <pcl/correspondence.h>
+#include <pcl/registration/icp.h>
+#include <pcl/registration/correspondence_rejection_sample_consensus.h>
 
 class RobotDriver {
 private:
@@ -29,11 +32,11 @@ private:
   char teclas_ [5];
 
 public:
-  RobotDriver(ros::NodeHandle &nh) {
+  RobotDriver (ros::NodeHandle &nh) {
     nh_ = nh;
 
-    cmd_stamp_pub_ = nh_.advertise<geometry_msgs::TwistStamped>("chatter", 1);
-    cmd_pub_ = nh_stamp_.advertise<geometry_msgs::Twist>("/mobile_base/commands/velocity", 1);
+    cmd_stamp_pub_ = nh_.advertise <geometry_msgs::TwistStamped> ("chatter", 1);
+    cmd_pub_ = nh_stamp_.advertise <geometry_msgs::Twist> ("/mobile_base/commands/velocity", 1);
 
     teclas_[0] = 'w'; // delante
     teclas_[1] = 'a'; // izquierda
@@ -55,8 +58,8 @@ public:
 
     char cmd[50];
 
-    while(nh_.ok() && nh_stamp_.ok()) {
-      std::cin.getline(cmd, 50);
+    while (nh_.ok() && nh_stamp_.ok()) {
+      std::cin.getline (cmd, 50);
       if (cmd[0] != teclas_[0] && cmd[0] != teclas_[1] && cmd[0] != teclas_[2] && cmd[0] != teclas_[3] && cmd[0] != teclas_[4]) {
         std::cout << "unknown command:" << cmd << "\n";
         continue;
@@ -93,8 +96,8 @@ public:
         " z: " << base_stamp_cmd.twist.angular.z <<
         " stamp: " << base_stamp_cmd.header.stamp << "\n";
 
-      cmd_stamp_pub_.publish(base_stamp_cmd);
-      cmd_pub_.publish(base_cmd);
+      cmd_stamp_pub_.publish (base_stamp_cmd);
+      cmd_pub_.publish (base_cmd);
     }
 
     return true;
@@ -107,44 +110,46 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr visu_pc (new pcl::PointCloud<pcl::PointXY
 pcl::PointCloud<pcl::PointWithScale>::Ptr puntosCaracteristicos (new pcl::PointCloud<pcl::PointWithScale> ());
 pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfhs (new pcl::PointCloud<pcl::FPFHSignature33> ());
 
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr visu_pcAnterior (new pcl::PointCloud<pcl::PointXYZRGB>);
+pcl::PointCloud<pcl::PointWithScale>::Ptr puntosCaracteristicosAnterior (new pcl::PointCloud<pcl::PointWithScale> ());
+pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfhsAnterior (new pcl::PointCloud<pcl::FPFHSignature33> ());
+
 void simpleVis () {
 	pcl::visualization::CloudViewer viewer ("Simple Cloud Viewer");
-	while(!viewer.wasStopped()) {
+	while (!viewer.wasStopped()) {
 	  viewer.showCloud (visu_pc);
-	  boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+	  boost::this_thread::sleep (boost::posix_time::milliseconds(1000));
 	}
 }
 
-void filtroVoxelGrid(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& nube, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& nube_VG){
-  pcl::VoxelGrid<pcl::PointXYZRGB > vGrid;
+void filtroVoxelGrid (pcl::PointCloud<pcl::PointXYZRGB>::Ptr& nube, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& nube_VG) {
+  pcl::VoxelGrid <pcl::PointXYZRGB> vGrid;
 
   vGrid.setInputCloud (nube);
   vGrid.setLeafSize (0.025f, 0.025f, 0.025f);
   vGrid.filter (*nube_VG);
 }
 
-void filtroSor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& nube_VG, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& nube_SOR){
+void filtroSor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& nube_VG, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& nube_SOR) {
+  // Probar parametros http://wiki.ros.org/pcl_ros/Tutorials/filters
   pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> filtro_SOR;
 
   filtro_SOR.setInputCloud (nube_VG);
-
-  // Probar parametros http://wiki.ros.org/pcl_ros/Tutorials/filters
   filtro_SOR.setMeanK (100);
   filtro_SOR.setStddevMulThresh (0.25);
-
   filtro_SOR.filter (*nube_SOR);
 }
 
 void estimacionNormales(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& nube_SOR, pcl::PointCloud<pcl::PointNormal>::Ptr& nube_normales) {
+  // http://docs.ros.org/indigo/api/pcl_ros/html/classpcl__ros_1_1NormalEstimation.html
   pcl::NormalEstimation<pcl::PointXYZRGB, pcl::PointNormal> estimacionNormal;
+
+  // http://docs.ros.org/hydro/api/pcl/html/classpcl_1_1search_1_1KdTree.html
   pcl::search::KdTree<pcl::PointXYZRGB>::Ptr arbol_normales(new pcl::search::KdTree<pcl::PointXYZRGB>());
 
   estimacionNormal.setInputCloud(nube_SOR);
   estimacionNormal.setSearchMethod(arbol_normales);
-
-  // http://docs.ros.org/indigo/api/pcl_ros/html/classpcl__ros_1_1NormalEstimation.html
   estimacionNormal.setRadiusSearch(0.05);
-
   estimacionNormal.compute(*nube_normales);
 }
 
@@ -155,6 +160,7 @@ void extraccionPuntosCaracteristicos(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& nub
     nube_normales->points[i].z = nube_SOR->points[i].z;
   }
 
+  // http://docs.ros.org/hydro/api/pcl/html/classpcl_1_1SIFTKeypoint.html
   pcl::SIFTKeypoint<pcl::PointNormal, pcl::PointWithScale> sift;
 
   const static float escalaMinima = 0.01f;
@@ -162,73 +168,101 @@ void extraccionPuntosCaracteristicos(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& nub
   const static int escalasPorOctavas = 4;
   const static float contrasteMinimmo = 0.001f;
 
-  pcl::search::KdTree<pcl::PointNormal>::Ptr arbol(new pcl::search::KdTree<pcl::PointNormal> ());
+  // http://docs.ros.org/hydro/api/pcl/html/classpcl_1_1search_1_1KdTree.html
+  pcl::search::KdTree<pcl::PointNormal>::Ptr arbol (new pcl::search::KdTree<pcl::PointNormal> ());
 
-  sift.setSearchMethod(arbol);
-  sift.setScales(escalaMinima, numeroOctavas, escalasPorOctavas);
-  sift.setMinimumContrast(contrasteMinimmo);
-  sift.setInputCloud(nube_normales);
-  sift.compute(*puntosCaracteristicos);
+  sift.setSearchMethod (arbol);
+  sift.setScales (escalaMinima, numeroOctavas, escalasPorOctavas);
+  sift.setMinimumContrast (contrasteMinimmo);
+  sift.setInputCloud (nube_normales);
+  sift.compute (*puntosCaracteristicos);
 }
 
-void extraccionCaracteristicas(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud, pcl::PointCloud<pcl::PointNormal>::Ptr& cloud_normals, pcl::PointCloud<pcl::FPFHSignature33>::Ptr& fpfhs){
+void extraccionCaracteristicas(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud, pcl::PointCloud<pcl::PointNormal>::Ptr& cloud_normals) {
+  // http://docs.ros.org/indigo/api/pcl_ros/html/classpcl__ros_1_1FPFHEstimation.html
+  pcl::FPFHEstimation<pcl::PointXYZRGB, pcl::PointNormal, pcl::FPFHSignature33> fpfh;
+
+  // http://docs.ros.org/hydro/api/pcl/html/classpcl_1_1search_1_1KdTree.html
+  pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZRGB> ());
 
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr keypoints_xyzrgb(new pcl::PointCloud<pcl::PointXYZRGB>);
 
   pcl::copyPointCloud (*puntosCaracteristicos, *keypoints_xyzrgb);
 
-  pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZRGB> ());
-  pcl::FPFHEstimation<pcl::PointXYZRGB, pcl::PointNormal, pcl::FPFHSignature33> fpfh;
-
-  // http://docs.ros.org/indigo/api/pcl_ros/html/classpcl__ros_1_1FPFHEstimation.html
   fpfh.setInputCloud (keypoints_xyzrgb);
   fpfh.setInputNormals (cloud_normals);
   fpfh.setSearchSurface (cloud);
-  fpfh.setSearchMethod(tree);
+  fpfh.setSearchMethod (tree);
   fpfh.setRadiusSearch (0.07);
   fpfh.compute (*fpfhs);
 }
 
+void obtencionCorrespondencias(pcl::Correspondences& correspondences) {
+  // http://docs.ros.org/hydro/api/pcl/html/classpcl_1_1registration_1_1CorrespondenceEstimation.html
+  pcl::registration::CorrespondenceEstimation<pcl::FPFHSignature33, pcl::FPFHSignature33> est;
+
+  est.setInputSource (fpfhsAnterior);
+  est.setInputTarget (fpfhs);
+  est.determineReciprocalCorrespondences (correspondences);
+  // Probar distancias como segundo parámetro 0.07 
+}
+
+Eigen::Matrix4f rechazarCorrespondencias(pcl::Correspondences& correspondencias, pcl::Correspondences& correspondenciasRechazadas) {
+  // http://wiki.ros.org/eigen_conversions
+  pcl::CorrespondencesConstPtr correspondencia (new pcl::Correspondences(correspondencias));
+  // http://docs.ros.org/diamondback/api/pcl/html/classpcl_1_1registration_1_1CorrespondenceRejectorSampleConsensus.html
+  pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointWithScale> sac;
+
+  sac.setInputSource (puntosCaracteristicosAnterior);
+  sac.setInputTarget (puntosCaracteristicos);
+  sac.setInlierThreshold (0.025);
+  sac.setMaximumIterations (10000);
+  sac.setRefineModel (true);
+  sac.setInputCorrespondences (correspondencia);
+  sac.getCorrespondences (correspondenciasRechazadas);
+
+  return sac.getBestTransformation();
+}
+
 void callback(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& msg) {
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr nube (new pcl::PointCloud<pcl::PointXYZRGB>(*msg));
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr nube_VG (new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr nube_SOR (new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::PointCloud<pcl::PointNormal>::Ptr nube_normales (new pcl::PointCloud<pcl::PointNormal>);
+
   if (capturaInicial) {
-//    *visu_pc = *msg;
-
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr nube (new pcl::PointCloud<pcl::PointXYZRGB>(*msg));
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr nube_VG (new pcl::PointCloud<pcl::PointXYZRGB>);
-    filtroVoxelGrid(nube, nube_VG);
-
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr nube_SOR (new pcl::PointCloud<pcl::PointXYZRGB>);
-    filtroSor(nube_VG, nube_SOR);
-
-    pcl::PointCloud<pcl::PointNormal>::Ptr nube_normales (new pcl::PointCloud<pcl::PointNormal>);
-    estimacionNormales(nube_SOR, nube_normales);
-
-    extraccionPuntosCaracteristicos(nube_SOR, nube_normales);
-    extraccionCaracteristicas(nube_SOR, nube_normales, fpfhs);
+    filtroVoxelGrid (nube, nube_VG);
+    filtroSor (nube_VG, nube_SOR);
+    estimacionNormales (nube_SOR, nube_normales);
+    extraccionPuntosCaracteristicos (nube_SOR, nube_normales);
+    extraccionCaracteristicas (nube_SOR, nube_normales);
 
     capturaInicial = false;
     visu_pc = nube_SOR;
   }
   else {
+    visu_pcAnterior = visu_pc;
+    puntosCaracteristicosAnterior = puntosCaracteristicos;
+    fpfhsAnterior = fpfhs;
 
+    filtroVoxelGrid (nube, nube_VG);
+    filtroSor (nube_VG, nube_SOR);
+    estimacionNormales (nube_SOR, nube_normales);
+    extraccionPuntosCaracteristicos (nube_SOR, nube_normales);
+    extraccionCaracteristicas (nube_SOR, nube_normales);
+
+    pcl::Correspondences correspondencias;
+    pcl::Correspondences correspondenciasRechazadas;
+
+    obtencionCorrespondencias(correspondencias);
+
+    Eigen::Matrix4f matrizTransformacion = rechazarCorrespondencias(correspondencias, correspondenciasRechazadas);
+
+
+
+    // TODO ELIMINAR
+    visu_pc = nube_SOR;
   }
-
-  /*
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB>(*msg));
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZRGB>);
-
-	cout << "Puntos capturados: " << cloud->size() << endl;
-
-  // Filtramos los puntos y aplicamos VoxelGrid
-	pcl::VoxelGrid<pcl::PointXYZRGB > vGrid;
-	vGrid.setInputCloud (cloud);
-	vGrid.setLeafSize (0.05f, 0.05f, 0.05f);
-	vGrid.filter (*cloud_filtered);
-
-	cout << "Puntos tras VG: " << cloud_filtered->size() << endl;
-
-	visu_pc = cloud_filtered;
-  */
 }
 
 int main(int argc, char** argv) {
@@ -237,7 +271,7 @@ int main(int argc, char** argv) {
   RobotDriver driver(nh);
 
   ros::NodeHandle nhCloud;
-  ros::Subscriber imageSub = nhCloud.subscribe<pcl::PointCloud<pcl::PointXYZRGB> >("/camera/depth/points", 1, callback);
+  ros::Subscriber imageSub = nhCloud.subscribe <pcl::PointCloud<pcl::PointXYZRGB> > ("/camera/depth/points", 1, callback);
   boost::thread t(simpleVis);
 
   driver.driveKeyboard();
