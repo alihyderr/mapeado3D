@@ -122,42 +122,42 @@ void simpleVis () {
 	}
 }
 
-void filtroVoxelGrid (pcl::PointCloud<pcl::PointXYZRGB>::Ptr& nube, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& nube_VG) {
-  pcl::VoxelGrid <pcl::PointXYZRGB> vGrid;
+void filtroVoxelGrid (pcl::PointCloud<pcl::PointXYZRGB>::Ptr& nube, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& nubeVG) {
+  pcl::VoxelGrid <pcl::PointXYZRGB> voxelGrid;
 
-  vGrid.setInputCloud (nube);
-  vGrid.setLeafSize (0.025f, 0.025f, 0.025f);
-  vGrid.filter (*nube_VG);
+  voxelGrid.setInputCloud (nube);
+  voxelGrid.setLeafSize (0.025f, 0.025f, 0.025f);
+  voxelGrid.filter (*nubeVG);
 }
 
-void filtroSor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& nube_VG, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& nube_SOR) {
+void filtroSor(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& nubeVG, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& nubeSOR) {
   // Probar parametros http://wiki.ros.org/pcl_ros/Tutorials/filters
-  pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> filtro_SOR;
+  pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> filtroSOR;
 
-  filtro_SOR.setInputCloud (nube_VG);
-  filtro_SOR.setMeanK (100);
-  filtro_SOR.setStddevMulThresh (0.25);
-  filtro_SOR.filter (*nube_SOR);
+  filtroSOR.setInputCloud (nubeVG);
+  filtroSOR.setMeanK (100);
+  filtroSOR.setStddevMulThresh (0.25);
+  filtroSOR.filter (*nubeSOR);
 }
 
-void estimacionNormales(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& nube_SOR, pcl::PointCloud<pcl::PointNormal>::Ptr& nube_normales) {
+void estimacionNormales(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& nubeSOR, pcl::PointCloud<pcl::PointNormal>::Ptr& nubeNormales) {
   // http://docs.ros.org/indigo/api/pcl_ros/html/classpcl__ros_1_1NormalEstimation.html
   pcl::NormalEstimation<pcl::PointXYZRGB, pcl::PointNormal> estimacionNormal;
 
   // http://docs.ros.org/hydro/api/pcl/html/classpcl_1_1search_1_1KdTree.html
-  pcl::search::KdTree<pcl::PointXYZRGB>::Ptr arbol_normales(new pcl::search::KdTree<pcl::PointXYZRGB>());
+  pcl::search::KdTree<pcl::PointXYZRGB>::Ptr arbolNormales(new pcl::search::KdTree<pcl::PointXYZRGB>());
 
-  estimacionNormal.setInputCloud(nube_SOR);
-  estimacionNormal.setSearchMethod(arbol_normales);
+  estimacionNormal.setInputCloud(nubeSOR);
+  estimacionNormal.setSearchMethod(arbolNormales);
   estimacionNormal.setRadiusSearch(0.05);
-  estimacionNormal.compute(*nube_normales);
+  estimacionNormal.compute(*nubeNormales);
 }
 
-void extraccionPuntosCaracteristicos(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& nube_SOR, pcl::PointCloud<pcl::PointNormal>::Ptr& nube_normales) {
-  for(size_t i = 0; i < nube_normales->points.size(); ++i) {
-    nube_normales->points[i].x = nube_SOR->points[i].x;
-    nube_normales->points[i].y = nube_SOR->points[i].y;
-    nube_normales->points[i].z = nube_SOR->points[i].z;
+void extraccionPuntosCaracteristicos(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& nubeSOR, pcl::PointCloud<pcl::PointNormal>::Ptr& nubeNormales, pcl::PointCloud<pcl::PointWithScale>::Ptr& resultado) {
+  for(size_t i = 0; i < nubeNormales->points.size(); ++i) {
+    nubeNormales->points[i].x = nubeSOR->points[i].x;
+    nubeNormales->points[i].y = nubeSOR->points[i].y;
+    nubeNormales->points[i].z = nubeSOR->points[i].z;
   }
 
   // http://docs.ros.org/hydro/api/pcl/html/classpcl_1_1SIFTKeypoint.html
@@ -174,94 +174,145 @@ void extraccionPuntosCaracteristicos(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& nub
   sift.setSearchMethod (arbol);
   sift.setScales (escalaMinima, numeroOctavas, escalasPorOctavas);
   sift.setMinimumContrast (contrasteMinimmo);
-  sift.setInputCloud (nube_normales);
-  sift.compute (*puntosCaracteristicos);
+  sift.setInputCloud (nubeNormales);
+  sift.compute (*resultado);
 }
 
-void extraccionCaracteristicas(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud, pcl::PointCloud<pcl::PointNormal>::Ptr& cloud_normals) {
+void extraccionCaracteristicas(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& nubeSOR, pcl::PointCloud<pcl::PointNormal>::Ptr& nubeNormales, pcl::PointCloud<pcl::PointWithScale>::Ptr& puntosClave, pcl::PointCloud<pcl::FPFHSignature33>::Ptr& resultado) {
   // http://docs.ros.org/indigo/api/pcl_ros/html/classpcl__ros_1_1FPFHEstimation.html
   pcl::FPFHEstimation<pcl::PointXYZRGB, pcl::PointNormal, pcl::FPFHSignature33> fpfh;
 
   // http://docs.ros.org/hydro/api/pcl/html/classpcl_1_1search_1_1KdTree.html
-  pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZRGB> ());
+  pcl::search::KdTree<pcl::PointXYZRGB>::Ptr arbol(new pcl::search::KdTree<pcl::PointXYZRGB> ());
 
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr keypoints_xyzrgb(new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr puntosClaveAux(new pcl::PointCloud<pcl::PointXYZRGB>);
 
-  pcl::copyPointCloud (*puntosCaracteristicos, *keypoints_xyzrgb);
+  pcl::copyPointCloud (*puntosClave, *puntosClaveAux);
 
-  fpfh.setInputCloud (keypoints_xyzrgb);
-  fpfh.setInputNormals (cloud_normals);
-  fpfh.setSearchSurface (cloud);
-  fpfh.setSearchMethod (tree);
+  fpfh.setInputCloud (puntosClaveAux);
+  fpfh.setInputNormals (nubeNormales);
+  fpfh.setSearchSurface (nubeSOR);
+  fpfh.setSearchMethod (arbol);
   fpfh.setRadiusSearch (0.07);
-  fpfh.compute (*fpfhs);
+  fpfh.compute (*resultado);
 }
 
-void obtencionCorrespondencias(pcl::Correspondences& correspondences) {
+void obtencionCorrespondencias(pcl::PointCloud<pcl::FPFHSignature33>::Ptr& origen, pcl::PointCloud<pcl::FPFHSignature33>::Ptr& destino, pcl::Correspondences& resultado) {
   // http://docs.ros.org/hydro/api/pcl/html/classpcl_1_1registration_1_1CorrespondenceEstimation.html
-  pcl::registration::CorrespondenceEstimation<pcl::FPFHSignature33, pcl::FPFHSignature33> est;
+  pcl::registration::CorrespondenceEstimation<pcl::FPFHSignature33, pcl::FPFHSignature33> estimacion;
 
-  est.setInputSource (fpfhsAnterior);
-  est.setInputTarget (fpfhs);
-  est.determineReciprocalCorrespondences (correspondences);
-  // Probar distancias como segundo parámetro 0.07 
+  estimacion.setInputSource (origen);
+  estimacion.setInputTarget (destino);
+  estimacion.determineReciprocalCorrespondences (resultado);
+  // Probar distancias como segundo parámetro 0.07
 }
 
-Eigen::Matrix4f rechazarCorrespondencias(pcl::Correspondences& correspondencias, pcl::Correspondences& correspondenciasRechazadas) {
+Eigen::Matrix4f rechazarCorrespondencias(pcl::PointCloud<pcl::PointWithScale>::Ptr& caracteristicasOrigen, pcl::PointCloud<pcl::PointWithScale>::Ptr& caracteristicasDestino, pcl::Correspondences& correspondencias, pcl::Correspondences& correspondenciasRechazadas) {
   // http://wiki.ros.org/eigen_conversions
   pcl::CorrespondencesConstPtr correspondencia (new pcl::Correspondences(correspondencias));
   // http://docs.ros.org/diamondback/api/pcl/html/classpcl_1_1registration_1_1CorrespondenceRejectorSampleConsensus.html
-  pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointWithScale> sac;
+  pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointWithScale> muestra;
 
-  sac.setInputSource (puntosCaracteristicosAnterior);
-  sac.setInputTarget (puntosCaracteristicos);
-  sac.setInlierThreshold (0.025);
-  sac.setMaximumIterations (10000);
-  sac.setRefineModel (true);
-  sac.setInputCorrespondences (correspondencia);
-  sac.getCorrespondences (correspondenciasRechazadas);
+  muestra.setInputSource (caracteristicasOrigen);
+  muestra.setInputTarget (caracteristicasDestino);
+  muestra.setInlierThreshold (0.025);
+  muestra.setMaximumIterations (10000);
+  muestra.setRefineModel (true);
+  muestra.setInputCorrespondences (correspondencia);
+  muestra.getCorrespondences (correspondenciasRechazadas);
 
-  return sac.getBestTransformation();
+  return muestra.getBestTransformation();
 }
 
 void callback(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& msg) {
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr nube (new pcl::PointCloud<pcl::PointXYZRGB>(*msg));
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr nube_VG (new pcl::PointCloud<pcl::PointXYZRGB>);
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr nube_SOR (new pcl::PointCloud<pcl::PointXYZRGB>);
-  pcl::PointCloud<pcl::PointNormal>::Ptr nube_normales (new pcl::PointCloud<pcl::PointNormal>);
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr nubeVG (new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr nubeSOR (new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::PointCloud<pcl::PointNormal>::Ptr nubeNormales (new pcl::PointCloud<pcl::PointNormal>);
 
   if (capturaInicial) {
-    filtroVoxelGrid (nube, nube_VG);
-    filtroSor (nube_VG, nube_SOR);
-    estimacionNormales (nube_SOR, nube_normales);
-    extraccionPuntosCaracteristicos (nube_SOR, nube_normales);
-    extraccionCaracteristicas (nube_SOR, nube_normales);
+    filtroVoxelGrid (nube, nubeVG);
+    filtroSor (nubeVG, nubeSOR);
+    estimacionNormales (nubeSOR, nubeNormales);
+    extraccionPuntosCaracteristicos (nubeSOR, nubeNormales, puntosCaracteristicos);
+    extraccionCaracteristicas (nubeSOR, nubeNormales, puntosCaracteristicos, fpfhs);
 
     capturaInicial = false;
-    visu_pc = nube_SOR;
+    visu_pc = nubeSOR;
   }
   else {
     visu_pcAnterior = visu_pc;
     puntosCaracteristicosAnterior = puntosCaracteristicos;
     fpfhsAnterior = fpfhs;
 
-    filtroVoxelGrid (nube, nube_VG);
-    filtroSor (nube_VG, nube_SOR);
-    estimacionNormales (nube_SOR, nube_normales);
-    extraccionPuntosCaracteristicos (nube_SOR, nube_normales);
-    extraccionCaracteristicas (nube_SOR, nube_normales);
+    filtroVoxelGrid (nube, nubeVG);
+    filtroSor (nubeVG, nubeSOR);
+    estimacionNormales (nubeSOR, nubeNormales);
+
+    pcl::PointCloud<pcl::PointWithScale>::Ptr puntosCaracteristicosSiguiente (new pcl::PointCloud<pcl::PointWithScale> ());
+    extraccionPuntosCaracteristicos (nubeSOR, nubeNormales, puntosCaracteristicosSiguiente);
+
+    pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfhsSiguiente (new pcl::PointCloud<pcl::FPFHSignature33> ());
+    extraccionCaracteristicas (nubeSOR, nubeNormales, puntosCaracteristicosSiguiente, fpfhsSiguiente);
 
     pcl::Correspondences correspondencias;
+    obtencionCorrespondencias(fpfhs, fpfhsSiguiente, correspondencias);
+
     pcl::Correspondences correspondenciasRechazadas;
+    Eigen::Matrix4f matrizTransformacion = rechazarCorrespondencias(puntosCaracteristicos, puntosCaracteristicosSiguiente, correspondencias, correspondenciasRechazadas);
 
-    obtencionCorrespondencias(correspondencias);
+    if (correspondenciasRechazadas.size() > (correspondencias.size() / 1.25)) {
+      pcl::PointCloud<pcl::PointNormal>::Ptr nubeNormalesAux (new pcl::PointCloud<pcl::PointNormal>);
+      estimacionNormales(visu_pc, nubeNormalesAux);
 
-    Eigen::Matrix4f matrizTransformacion = rechazarCorrespondencias(correspondencias, correspondenciasRechazadas);
+      pcl::PointCloud<pcl::PointWithScale>::Ptr puntosCaracteristicosAux (new pcl::PointCloud<pcl::PointWithScale> ());
+      extraccionPuntosCaracteristicos(visu_pc, nubeNormalesAux, puntosCaracteristicosAux);
 
+      pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfhsAux (new pcl::PointCloud<pcl::FPFHSignature33> ());
+      extraccionCaracteristicas(visu_pc, nubeNormalesAux, puntosCaracteristicosAux, fpfhsAux);
 
+      pcl::Correspondences correspondenciasAux;
+      obtencionCorrespondencias(fpfhsAux, fpfhsSiguiente, correspondenciasAux);
 
-    // TODO ELIMINAR
-    visu_pc = nube_SOR;
+      pcl::Correspondences correspondenciasRechazadasAux;
+      Eigen::Matrix4f matrizTransformacionAux = rechazarCorrespondencias (puntosCaracteristicosAux, puntosCaracteristicosSiguiente, correspondenciasAux, correspondenciasRechazadasAux);
+
+      if (correspondenciasRechazadas.size() > (correspondencias.size() / 1.25)) {
+        visu_pc = visu_pcAnterior;
+        puntosCaracteristicos = puntosCaracteristicosAnterior;
+        fpfhs = fpfhsAnterior;
+
+        return;
+      }
+
+      puntosCaracteristicos = puntosCaracteristicosSiguiente;
+      fpfhs =  fpfhsSiguiente;
+
+      pcl::PointCloud<pcl::PointXYZRGB>::Ptr nubeTransformada (new pcl::PointCloud<pcl::PointXYZRGB>);
+      pcl::transformPointCloud(*visu_pc, *nubeTransformada, matrizTransformacionAux);
+
+      *visu_pc = *nubeTransformada + *nubeVG;
+
+      pcl::PointCloud<pcl::PointXYZRGB>::Ptr nubeVGAux (new pcl::PointCloud<pcl::PointXYZRGB>);
+      filtroVoxelGrid (visu_pc, nubeVGAux);
+
+      visu_pc = nubeVGAux;
+
+      return;
+    }
+
+    puntosCaracteristicos = puntosCaracteristicosSiguiente;
+    fpfhs = fpfhsSiguiente;
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr nubeTransformadaSiguiente (new pcl::PointCloud<pcl::PointXYZRGB>);
+    pcl::transformPointCloud(*visu_pc, *nubeTransformadaSiguiente, matrizTransformacion);
+
+    *visu_pc = *nubeTransformadaSiguiente + *nubeVG;
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr nubeVGSiguiente (new pcl::PointCloud<pcl::PointXYZRGB>);
+    filtroVoxelGrid (visu_pc, nubeVGSiguiente);
+
+    visu_pc = nubeVGSiguiente;
   }
 }
 
