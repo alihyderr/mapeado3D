@@ -16,21 +16,6 @@
 //#include <geometry_msgs/TwistStamped.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/point_cloud_conversion.h>
-// pcd
-
-/*
-pcl::PointCloud<pcl::PointXYZRGB>::Ptr visu_pc(new pcl::PointCloud<pcl::PointXYZRGB>);
-
-void simpleVis()
-{
-	pcl::visualization::CloudViewer viewer("Simple Cloud Viewer");
-	while (!viewer.wasStopped())
-	{
-		viewer.showCloud(visu_pc);
-		boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
-	}
-}
-*/
 
 int capturas = 1;
 
@@ -42,19 +27,6 @@ void callback(const sensor_msgs::PointCloud2ConstPtr& msg, const sensor_msgs::Jo
 	} else if ( joy->axes[ 5 ] <= 0.9 && joy->axes[ 5 ] > 0){
 		pcl::PointCloud<pcl::PointXYZRGB> pointcloud;
 		pcl::fromROSMsg(*msg, pointcloud);
-
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>(pointcloud));
-		
-		//std::cout << "Puntos capturados: " << cloud->size() << std::endl;
-
-		/* 
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZRGB>);
-		pcl::VoxelGrid<pcl::PointXYZRGB> vGrid;
-		vGrid.setInputCloud(cloud);
-		vGrid.setLeafSize(0.05f, 0.05f, 0.05f);
-		vGrid.filter(*cloud_filtered);
-		std::cout << "Puntos tras VG: " << cloud_filtered->size() << std::endl;
-		visu_pc = cloud_filtered; */
 
 		pcl::io::savePCDFileASCII( "X" + std::to_string( capturas++ )+ ".pcd", pointcloud );
 		std::cerr << "Saved " << pointcloud.points.size () << " data points to " << capturas << std::endl;
@@ -85,8 +57,6 @@ int main(int argc, char **argv) {
 	puts("main get_cloud");
 	ros::init(argc, argv, "sub_pcl");
 	ImageConverter ic;
-
-	//boost::thread t(simpleVis);
 
 	while (ros::ok()) {
 		ros::spinOnce();

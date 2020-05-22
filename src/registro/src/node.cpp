@@ -86,13 +86,6 @@ void computeFPFHFeatures(
 	const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& keypoints,
 	const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& nube) 
 {
-	// si no se hace downsampling no es viable computar fpfh en el portatil
-/*	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZRGB>);
-	pcl::VoxelGrid<pcl::PointXYZRGB> vGrid;
-	vGrid.setInputCloud(toda);
-	vGrid.setLeafSize(0.025f, 0.025f, 0.025f);
-	vGrid.filter(*cloud_filtered);
-*/
 	std::cout << "Loaded " << keypoints->points.size () << " points." << std::endl;
 
 	// Compute the normals
@@ -160,12 +153,12 @@ void correspondancesViewer(
 {
 	pcl::visualization::PCLVisualizer corresp_viewer("visión titánica");
     corresp_viewer.setBackgroundColor(0, 0, 0);
-    //corresp_viewer.addPointCloud(src, "Src cloud");
-    //corresp_viewer.addPointCloud(tgt, "Tgt cloud");
+    //corresp_viewer.addPointCloud(src, "src");
+    //corresp_viewer.addPointCloud(tgt, "tgt");
     corresp_viewer.addPointCloud<pcl::PointXYZRGB>(sift_keypoints1, "src");
     corresp_viewer.addPointCloud<pcl::PointXYZRGB>(sift_keypoints2, "tgt");
-    corresp_viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "src");
-    corresp_viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "tgt");
+    //corresp_viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "src");
+    //corresp_viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "tgt");
 
     for (auto i = 0; i < remaining_correspondences->size(); ++i) {
         pcl::PointXYZRGB& src_idx = src->points[(*remaining_correspondences)[i].index_query];
@@ -222,7 +215,7 @@ void computeIteration(
 		puts("correspondence.size() == 0, no seguir los pasos");
 		return;
 	}
-	
+
 	//correspondancesViewer(sift_keypoints1, sift_keypoints2, remaining_correspondences, nube1, nube2);
 	
 	// Paso 7: Obtener las mejor transformación Ti
@@ -246,23 +239,15 @@ void computeIteration(
 }
 
 void magia () {
-		pcl::visualization::PCLVisualizer viewer("PCL Viewer");
-		pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> keypoints_color_handler (M, 0, 0, 0);
-		viewer.setBackgroundColor( 250.0, 250.0, 250.0 );
-		unsigned long i = 0;
-		while(!viewer.wasStopped ()) {
-			viewer.addPointCloud(M, keypoints_color_handler, std::to_string(i));
-			//viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 7, std::to_string(i));
-			viewer.spinOnce ();
-			++i;
-		}
-/*
-	pcl::visualization::CloudViewer viewer ("Cloud M viewer");
-	while (!viewer.wasStopped()) {
-	  viewer.showCloud (M);
-	  boost::this_thread::sleep (boost::posix_time::milliseconds(2000));
+	pcl::visualization::PCLVisualizer viewer("PCL Viewer");
+	pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> keypoints_color_handler (M, 0, 0, 0);
+	viewer.setBackgroundColor( 250.0, 250.0, 250.0 );
+	unsigned long i = 0;
+	while(!viewer.wasStopped ()) {
+		viewer.addPointCloud(M, keypoints_color_handler, std::to_string(i));
+		viewer.spinOnce ();
+		++i;
 	}
-*/
 }
 
 int main(int argc, char **argv) {
