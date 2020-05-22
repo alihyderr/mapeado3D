@@ -53,7 +53,8 @@
         "cinttypes": "cpp",
         "utility": "cpp",
         "typeindex": "cpp",
-        "typeinfo": "cpp"
+        "typeinfo": "cpp",
+        "valarray": "cpp"
     },
     "python.autoComplete.extraPaths": [
         "/opt/ros/kinetic/lib/python2.7/dist-packages"

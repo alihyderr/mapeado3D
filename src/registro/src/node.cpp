@@ -20,7 +20,6 @@
 #include <pcl/registration/transformation_estimation_svd.h>
 
 #define RESET   "\033[0m"
-#define BLACK   "\033[30m"      /* Black */
 #define RED     "\033[31m"      /* Red */
 
 /*
@@ -32,17 +31,21 @@ const std::string raiz = "datos";
 const std::string nubes = raiz + "/nubes/";
 const std::string parametros = raiz + "/parametros/";
 // Parameters for sift computation
-const float min_scale 			= 0.1f;
-const int 	n_octaves 			= 6;
-const int 	n_scales_per_octave = 10;
-const float min_contrast 		= 0.5f;
+const float min_scale 			= 0.01f;
+const int 	n_octaves 			= 3;
+const int 	n_scales_per_octave = 4;
+const float min_contrast 		= 0.001f;
 // Parametros FPFH
-const double normal_estimation_radius 	= 0.03;
-const double fpfh_estimation_radius 	= 0.2;
+const double normal_estimation_radius 	= 0.05;
+const double fpfh_estimation_radius 	= 0.07;
 // reject correspondences
-const double rejector_threshold 	= 0.1;
-const double rejector_maxIterations = 50;
+const double rejector_threshold 	= 0.025;
+const double rejector_maxIterations = 10000;
 const bool	 refineModel 			= true;
+
+
+// Mapa 3D
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr M( new pcl::PointCloud<pcl::PointXYZRGB>() );
 
 void computeSiftKeypoints(
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr& keypoints,
@@ -81,20 +84,20 @@ void computeSiftKeypoints(
 void computeFPFHFeatures(
 	pcl::PointCloud<pcl::PFHRGBSignature250>::Ptr& pfh_features, 
 	const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& keypoints,
-	const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& toda) 
+	const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& nube) 
 {
 	// si no se hace downsampling no es viable computar fpfh en el portatil
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZRGB>);
+/*	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZRGB>);
 	pcl::VoxelGrid<pcl::PointXYZRGB> vGrid;
 	vGrid.setInputCloud(toda);
-	vGrid.setLeafSize(0.1f, 0.1f, 0.1f);
+	vGrid.setLeafSize(0.025f, 0.025f, 0.025f);
 	vGrid.filter(*cloud_filtered);
-
+*/
 	std::cout << "Loaded " << keypoints->points.size () << " points." << std::endl;
 
 	// Compute the normals
 	pcl::NormalEstimation<pcl::PointXYZRGB, pcl::Normal> normal_estimation;
-	normal_estimation.setInputCloud (cloud_filtered);
+	normal_estimation.setInputCloud (nube);
 	pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB>);
 	normal_estimation.setSearchMethod (tree);
 	pcl::PointCloud<pcl::Normal>::Ptr cloud_with_normals (new pcl::PointCloud<pcl::Normal>);
@@ -107,7 +110,7 @@ void computeFPFHFeatures(
 	pcl::PFHRGBEstimation<pcl::PointXYZRGB, pcl::Normal, pcl::PFHRGBSignature250> estimation;
 	
 	estimation.setInputCloud (keypoints_xyzrgb);
-	estimation.setSearchSurface(cloud_filtered);
+	estimation.setSearchSurface(nube);
 	estimation.setInputNormals (cloud_with_normals);
 	estimation.setSearchMethod (tree);
 	estimation.setRadiusSearch (fpfh_estimation_radius);
@@ -220,7 +223,7 @@ void computeIteration(
 		return;
 	}
 	
-	correspondancesViewer(sift_keypoints1, sift_keypoints2, remaining_correspondences, nube1, nube2);
+	//correspondancesViewer(sift_keypoints1, sift_keypoints2, remaining_correspondences, nube1, nube2);
 	
 	// Paso 7: Obtener las mejor transformación Ti
 	puts("->Matriz trasnformación Ti");
@@ -233,13 +236,39 @@ void computeIteration(
 	puts("->Matriz trasnformación total Tt");
 	Tt = Tt * Ti;
 	std::cout << Tt << '\n';
+
+	// Paso 9: Aplicar Tt a Ci+1
+	puts("->Aplicar Tt");
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_out (new pcl::PointCloud<pcl::PointXYZRGB>);
+    pcl::transformPointCloud(*nube1, *cloud_out, Tt);
+
+	*M += *cloud_out;
+}
+
+void magia () {
+		pcl::visualization::PCLVisualizer viewer("PCL Viewer");
+		pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> keypoints_color_handler (M, 0, 0, 0);
+		viewer.setBackgroundColor( 250.0, 250.0, 250.0 );
+		unsigned long i = 0;
+		while(!viewer.wasStopped ()) {
+			viewer.addPointCloud(M, keypoints_color_handler, std::to_string(i));
+			//viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 7, std::to_string(i));
+			viewer.spinOnce ();
+			++i;
+		}
+/*
+	pcl::visualization::CloudViewer viewer ("Cloud M viewer");
+	while (!viewer.wasStopped()) {
+	  viewer.showCloud (M);
+	  boost::this_thread::sleep (boost::posix_time::milliseconds(2000));
+	}
+*/
 }
 
 int main(int argc, char **argv) {
 	ros::init(argc, argv, "registro");
 
-	// Mapa 3D
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr M( new pcl::PointCloud<pcl::PointXYZRGB>() );
+	boost::thread ts(magia);
 
 	// Tt = I
 	Eigen::Matrix4f Tt;
@@ -251,13 +280,24 @@ int main(int argc, char **argv) {
 
 	const size_t t = numero_de_nubes;
 
+	pcl::VoxelGrid<pcl::PointXYZRGB> vGrid;
+	vGrid.setLeafSize(0.025f, 0.025f, 0.025f);
+
 	for ( auto i = 1; i < t; ++i ) {
 		std::cout << RED << " Para i = " << i << ' ' << RESET << '\n';
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud1 (new pcl::PointCloud<pcl::PointXYZRGB>);
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud2 (new pcl::PointCloud<pcl::PointXYZRGB>);
 		pcl::io::loadPCDFile<pcl::PointXYZRGB> (nubes + "X" + std::to_string( i ) + ".pcd", *cloud1);
 		pcl::io::loadPCDFile<pcl::PointXYZRGB> (nubes + "X" + std::to_string( i+1 ) + ".pcd", *cloud2);
-		computeIteration( M, Tt, cloud1, cloud2 );
+		
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered1(new pcl::PointCloud<pcl::PointXYZRGB>);
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered2(new pcl::PointCloud<pcl::PointXYZRGB>);
+		vGrid.setInputCloud(cloud1);
+		vGrid.filter(*cloud_filtered1);
+		vGrid.setInputCloud(cloud2);
+		vGrid.filter(*cloud_filtered2);
+
+		computeIteration( M, Tt, cloud_filtered1, cloud_filtered2 );
 	}
 
 	std::cout << "Tt\n" << Tt;
