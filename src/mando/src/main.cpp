@@ -40,7 +40,7 @@ TeleopTurtle::TeleopTurtle():
  << "scale_angular"  << a_scale_
  << "scale_linear"  << l_scale_ << "\n";
 
-  vel_pub_ = nh_.advertise<geometry_msgs::Twist>("/robot1/mobile_base/commands/velocity", 1);
+  vel_pub_ = nh_.advertise<geometry_msgs::Twist>("/mobile_base/commands/velocity", 1);
   
   joy_sub_ = nh_.subscribe<sensor_msgs::Joy>("joy", 10, &TeleopTurtle::joyCallback, this);
 
@@ -60,7 +60,7 @@ void TeleopTurtle::joyCallback(const sensor_msgs::Joy::ConstPtr& joy)
   twist.angular.z = joy->axes[3]; // joy derecho
   //twist.linear.x  = 0.3; // joy izquierdo
   twist.linear.x  = joy->axes[1] + joy->axes[0]; // joy izquierdo
-
+  //std::cout << "axis_linear" << twist.linear.x << "axis_angular"  << twist.linear.z << "\n";
   vel_pub_.publish(twist);
   cmd_vel_pub_.publish(joy);
 }

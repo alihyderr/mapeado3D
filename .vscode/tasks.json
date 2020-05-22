@@ -1,0 +1,101 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "catkin_make",
+            "type": "shell",
+            "command": "catkin_make",
+            "args": [
+                "-j4",
+                "-DCMAKE_BUILD_TYPE=Release",
+                "-DCMAKE_EXPORT_COMPILE_COMMANDS=1",
+                "-DCMAKE_CXX_STANDARD=14"
+            ],
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "roscore",
+            "type": "shell",
+            "command": "roscore",
+            "problemMatcher": [],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "load_model",
+            "type": "shell",
+            "command": "source devel/setup.bash && roslaunch load_model init.launch",
+            "problemMatcher": [],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "joy_node",
+            "type": "shell",
+            "command": "source devel/setup.bash && rosrun joy joy_node",
+            "problemMatcher": [],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "mando",
+            "type": "shell",
+            "command": "source devel/setup.bash && rosrun mando mando",
+            "problemMatcher": [],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "get_camera",
+            "type": "shell",
+            "command": "source devel/setup.bash && rosrun get_camera get_camera_node",
+            "problemMatcher": [],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "get_pointclouds",
+            "type": "shell",
+            "command": "source devel/setup.bash && rosrun get_pointclouds get_pointclouds_node get_cloud",
+            "problemMatcher": [],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "registro",
+            "type": "shell",
+            "command": "source devel/setup.bash && rosrun registro registro_node",
+            "problemMatcher": [],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "rviz",
+            "type": "shell",
+            "command": "rviz",
+            "problemMatcher": [],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        }
+    ]
+}

@@ -16,7 +16,7 @@ class RobotSense {
 
 public:
   RobotSense() : it(nh) {
-    sub = it.subscribe("robot1/camera/rgb/image_raw", 1, &RobotSense::imageCallback, this);
+    sub = it.subscribe("/camera/rgb/image_raw", 1, &RobotSense::imageCallback, this);
     cv::namedWindow(OPENCV_WINDOW);
     cv::startWindowThread();
   }
