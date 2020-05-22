@@ -117,12 +117,12 @@ void simpleVis () {
 
   while (!viewer.wasStopped()) {
     viewer.showCloud (visu_pc);
-
+/*
     char *intStr = itoa(capturas);
     string numero = string(intStr);
 
     pcl::io::savePCDFile ("nube" + numero + ".pcd", visu_pc, true);
-
+*/
     capturas++;
     boost::this_thread::sleep (boost::posix_time::milliseconds(1000));
   }
@@ -136,7 +136,7 @@ void callback (const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& msg) {
   pcl::VoxelGrid<pcl::PointXYZRGB > voxelGrid;
 
   voxelGrid.setInputCloud (nube);
-  voxelGrid.setLeafSize (0.05f, 0.05f, 0.05f);
+  voxelGrid.setLeafSize (0.05f, 0.05f, 0.05f); 
 
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr nubeVG (new pcl::PointCloud<pcl::PointXYZRGB>);
   voxelGrid.filter (*nubeVG);

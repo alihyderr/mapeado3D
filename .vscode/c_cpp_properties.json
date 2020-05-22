@@ -7,8 +7,8 @@
             },
             "includePath": [
                 "/opt/ros/kinetic/include/**",
-                "/home/alex/Documentos/mapeado3D/src/get_camera/include/**",
-                "/home/alex/Documentos/mapeado3D/src/get_pointclouds/include/**",
+                "/home/jorge/mapeado3D/src/get_camera/include/**",
+                "/home/jorge/mapeado3D/src/get_pointclouds/include/**",
                 "/usr/include/**"
             ],
             "name": "ROS",

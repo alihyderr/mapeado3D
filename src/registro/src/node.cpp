@@ -9,7 +9,7 @@
 // sift
 #include <pcl/keypoints/sift_keypoint.h>
 // fpfh
-//#include <pcl/features/fpfh.h>
+#include <pcl/features/fpfh.h>
 #include <pcl/features/normal_3d.h>
 #include <pcl/features/pfhrgb.h>
 #include <pcl/features/pfh.h>
@@ -18,6 +18,8 @@
 #include <pcl/registration/correspondence_rejection_sample_consensus.h>
 // transformación
 #include <pcl/registration/transformation_estimation_svd.h>
+
+#include <pcl/filters/statistical_outlier_removal.h>
 
 #define RESET   "\033[0m"
 #define RED     "\033[31m"      /* Red */
@@ -37,7 +39,7 @@ const int 	n_scales_per_octave = 4;
 const float min_contrast 		= 0.001f;
 // Parametros FPFH
 const double normal_estimation_radius 	= 0.05;
-const double fpfh_estimation_radius 	= 0.07;
+const double fpfh_estimation_radius 	= 0.25;
 // reject correspondences
 const double rejector_threshold 	= 0.025;
 const double rejector_maxIterations = 10000;
@@ -54,16 +56,17 @@ void computeSiftKeypoints(
 {
 	// Estimate the sift interest points using Intensity values from RGB values
 	pcl::SIFTKeypoint<pcl::PointXYZRGB, pcl::PointWithScale> sift;
-	pcl::PointCloud<pcl::PointWithScale> result;
+	pcl::PointCloud<pcl::PointWithScale>::Ptr result (new pcl::PointCloud<pcl::PointWithScale> ());
+	//pcl::PointCloud<pcl::PointWithScale> result;
 	pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZRGB> ());
 	sift.setSearchMethod(tree);
 	sift.setScales(min_scale, n_octaves, n_scales_per_octave);
 	sift.setMinimumContrast(min_contrast);
 	sift.setInputCloud(cloud);
-	sift.compute(result);
+	sift.compute(*result);
 
 	// Copying the pointwithscale to pointxyz so as visualize the cloud
-	copyPointCloud(result, *keypoints);
+	copyPointCloud(*result, *keypoints);
 
 	// Visualization of keypoints along with the original cloud
 	if ( visualization != 0 ) {
@@ -81,8 +84,15 @@ void computeSiftKeypoints(
 	}
 }
 
+/*
 void computeFPFHFeatures(
 	pcl::PointCloud<pcl::PFHRGBSignature250>::Ptr& pfh_features, 
+	const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& keypoints,
+	const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& nube) 
+{
+*/
+void computeFPFHFeatures(
+	pcl::PointCloud<pcl::FPFHSignature33>::Ptr& pfh_features, 
 	const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& keypoints,
 	const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& nube) 
 {
@@ -96,19 +106,20 @@ void computeFPFHFeatures(
 	std::cout << "Loaded " << keypoints->points.size () << " points." << std::endl;
 
 	// Compute the normals
-	pcl::NormalEstimation<pcl::PointXYZRGB, pcl::Normal> normal_estimation;
+	pcl::NormalEstimation<pcl::PointXYZRGB, pcl::PointNormal> normal_estimation;
 	normal_estimation.setInputCloud (nube);
 	pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB>);
 	normal_estimation.setSearchMethod (tree);
-	pcl::PointCloud<pcl::Normal>::Ptr cloud_with_normals (new pcl::PointCloud<pcl::Normal>);
+	pcl::PointCloud<pcl::PointNormal>::Ptr cloud_with_normals (new pcl::PointCloud<pcl::PointNormal>);
 	normal_estimation.setRadiusSearch (normal_estimation_radius);
 	normal_estimation.compute (*cloud_with_normals);
 
 	// Setup the feature computation
     pcl::PointCloud <pcl::PointXYZRGB>::Ptr keypoints_xyzrgb(new pcl::PointCloud <pcl::PointXYZRGB>);
     pcl::copyPointCloud(*keypoints, *keypoints_xyzrgb);
-	pcl::PFHRGBEstimation<pcl::PointXYZRGB, pcl::Normal, pcl::PFHRGBSignature250> estimation;
-	
+	//pcl::PFHRGBEstimation<pcl::PointXYZRGB, pcl::Normal, pcl::PFHRGBSignature250> estimation;
+	pcl::FPFHEstimation<pcl::PointXYZRGB, pcl::PointNormal, pcl::FPFHSignature33> estimation;
+
 	estimation.setInputCloud (keypoints_xyzrgb);
 	estimation.setSearchSurface(nube);
 	estimation.setInputNormals (cloud_with_normals);
@@ -117,18 +128,24 @@ void computeFPFHFeatures(
 	estimation.compute (*pfh_features);
 }
 
+/*
 void findCorrespondences(
 	const pcl::PointCloud<pcl::PFHRGBSignature250>::Ptr& fpfh_src,
     const pcl::PointCloud<pcl::PFHRGBSignature250>::Ptr& fpfh_tgt,
     pcl::Correspondences& all_correspondences) {
-
-    pcl::registration::CorrespondenceEstimation<pcl::PFHRGBSignature250, pcl::PFHRGBSignature250> est;
+*/
+void findCorrespondences(
+	const pcl::PointCloud<pcl::FPFHSignature33>::Ptr& fpfh_src,
+    const pcl::PointCloud<pcl::FPFHSignature33>::Ptr& fpfh_tgt,
+    pcl::Correspondences& all_correspondences)
+{
+    pcl::registration::CorrespondenceEstimation<pcl::FPFHSignature33, pcl::FPFHSignature33> est;
     est.setInputSource(fpfh_src);
     est.setInputTarget(fpfh_tgt);
     est.determineReciprocalCorrespondences(all_correspondences);
 }
 
-void rejectCorrespondences( 
+Eigen::Matrix4f rejectCorrespondences( 
 	pcl::Correspondences& remaining_correspondences,
 	const pcl::CorrespondencesPtr& correspondences,
 	const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& sift_keypoints1,
@@ -148,7 +165,9 @@ void rejectCorrespondences(
     rejector.setMaximumIterations(rejector_maxIterations);
     rejector.setRefineModel(refineModel);
     rejector.setInputCorrespondences(correspondences);
-    rejector.getCorrespondences(remaining_correspondences);	
+    rejector.getCorrespondences(remaining_correspondences);
+
+	return rejector.getBestTransformation();
 }
 
 void correspondancesViewer(
@@ -190,17 +209,22 @@ void computeIteration(
 {
 	// Pasos 4 y 5: Obtener características de Ct Ct+1
 	puts("->Características");
+
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr sift_keypoints1 ( new pcl::PointCloud<pcl::PointXYZRGB>() );
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr sift_keypoints2 ( new pcl::PointCloud<pcl::PointXYZRGB>() );
-	computeSiftKeypoints( sift_keypoints1,nube1, false );
-	computeSiftKeypoints( sift_keypoints2,nube2, false );
+	computeSiftKeypoints( sift_keypoints1, nube1, false );
+	computeSiftKeypoints( sift_keypoints2, nube2, false );
 	std::cout << "Ci.size()   = " << sift_keypoints1->size() << "\n";
 	std::cout << "Ci+1.size() = " << sift_keypoints2->size() << "\n";
 	
 	// Descriptores de las características con PFPH
 	puts("->Descriptores");
-	pcl::PointCloud<pcl::PFHRGBSignature250>::Ptr pfph_features1 (new pcl::PointCloud<pcl::PFHRGBSignature250>);
-	pcl::PointCloud<pcl::PFHRGBSignature250>::Ptr pfph_features2 (new pcl::PointCloud<pcl::PFHRGBSignature250>);
+
+	pcl::PointCloud<pcl::FPFHSignature33>::Ptr pfph_features1 (new pcl::PointCloud<pcl::FPFHSignature33> ());
+	pcl::PointCloud<pcl::FPFHSignature33>::Ptr pfph_features2 (new pcl::PointCloud<pcl::FPFHSignature33> ());
+
+	//pcl::PointCloud<pcl::PFHRGBSignature250>::Ptr pfph_features1 (new pcl::PointCloud<pcl::PFHRGBSignature250>);
+	//pcl::PointCloud<pcl::PFHRGBSignature250>::Ptr pfph_features2 (new pcl::PointCloud<pcl::PFHRGBSignature250>);
 	computeFPFHFeatures( pfph_features1, sift_keypoints1, nube1 );
 	computeFPFHFeatures( pfph_features2, sift_keypoints2, nube2 );
 	std::cout << "pfph_i[0] = " << pfph_features1->points[0] << '\n';
@@ -215,8 +239,12 @@ void computeIteration(
 	// eliminar correspondencias no válidas con RANSAC
 	puts("->Mejores emparejamientos");
 	pcl::CorrespondencesPtr remaining_correspondences ( new pcl::Correspondences());
+
+	Eigen::Matrix4f Taux;
 	if ( correspondences->size() != 0) {
-		rejectCorrespondences( *remaining_correspondences, correspondences, sift_keypoints1, sift_keypoints2 );
+		puts("->Matriz trasnformación Taux");
+		Taux = rejectCorrespondences( *remaining_correspondences, correspondences, sift_keypoints1, sift_keypoints2 );
+		std::cout << Taux << '\n';
 		std::cout << "remaining_correspondences.size() = " << remaining_correspondences->size() << '\n';
 	} else {
 		puts("correspondence.size() == 0, no seguir los pasos");
@@ -230,11 +258,11 @@ void computeIteration(
 	Eigen::Matrix4f Ti;
 	pcl::registration::TransformationEstimationSVD<pcl::PointXYZRGB, pcl::PointXYZRGB> svd;
 	svd.estimateRigidTransformation(*sift_keypoints1, *sift_keypoints2, *remaining_correspondences, Ti);
-	std::cout << Ti << '\n';	
+	std::cout << Ti << '\n';
 
 	// Paso 8: Obtener la transformación total
 	puts("->Matriz trasnformación total Tt");
-	Tt = Tt * Ti;
+	Tt = Tt * Taux;
 	std::cout << Tt << '\n';
 
 	// Paso 9: Aplicar Tt a Ci+1
@@ -283,13 +311,24 @@ int main(int argc, char **argv) {
 	pcl::VoxelGrid<pcl::PointXYZRGB> vGrid;
 	vGrid.setLeafSize(0.025f, 0.025f, 0.025f);
 
+	pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> filtroSOR;
+	filtroSOR.setMeanK (100);
+	filtroSOR.setStddevMulThresh (0.25);
+
 	for ( auto i = 1; i < t; ++i ) {
 		std::cout << RED << " Para i = " << i << ' ' << RESET << '\n';
+
+		// Cargamos los datos
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud1 (new pcl::PointCloud<pcl::PointXYZRGB>);
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud2 (new pcl::PointCloud<pcl::PointXYZRGB>);
 		pcl::io::loadPCDFile<pcl::PointXYZRGB> (nubes + "X" + std::to_string( i ) + ".pcd", *cloud1);
 		pcl::io::loadPCDFile<pcl::PointXYZRGB> (nubes + "X" + std::to_string( i+1 ) + ".pcd", *cloud2);
 		
+		puts("->NUBE inicial");
+		std::cout << "Ci.size()   = " << cloud1->size() << "\n";
+		std::cout << "Ci+1.size() = " << cloud2->size() << "\n";
+
+		// APLICAMOS VOXEL GRID
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered1(new pcl::PointCloud<pcl::PointXYZRGB>);
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered2(new pcl::PointCloud<pcl::PointXYZRGB>);
 		vGrid.setInputCloud(cloud1);
@@ -297,9 +336,26 @@ int main(int argc, char **argv) {
 		vGrid.setInputCloud(cloud2);
 		vGrid.filter(*cloud_filtered2);
 
-		computeIteration( M, Tt, cloud_filtered1, cloud_filtered2 );
+		puts("->NUBE VG");
+		std::cout << "Ci.size()   = " << cloud_filtered1->size() << "\n";
+		std::cout << "Ci+1.size() = " << cloud_filtered2->size() << "\n";
+
+		// APLICAMOS SOR
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr nubeSOR1 (new pcl::PointCloud<pcl::PointXYZRGB>);
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr nubeSOR2 (new pcl::PointCloud<pcl::PointXYZRGB>);
+		filtroSOR.setInputCloud (cloud_filtered1);
+		filtroSOR.filter (*nubeSOR1);
+		filtroSOR.setInputCloud (cloud_filtered2);
+		filtroSOR.filter (*nubeSOR2);
+
+		puts("->NUBE SOR");
+		std::cout << "Ci.size()   = " << nubeSOR1->size() << "\n";
+		std::cout << "Ci+1.size() = " << nubeSOR2->size() << "\n";
+
+		computeIteration( M, Tt, nubeSOR1, nubeSOR2 );
 	}
 
+	getchar();
 	std::cout << "Tt\n" << Tt;
 
 	return 0;
