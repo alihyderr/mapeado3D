@@ -10,13 +10,10 @@
 #include <pcl_ros/point_cloud.h>
 #include <pcl/point_types.h>
 
-#include <boost/foreach.hpp>
-
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/visualization/cloud_viewer.h>
 
-#include <pcl/filters/voxel_grid.h>
-#include <pcl/filters/statistical_outlier_removal.h>
+#include <pcl/io/pcd_io.h>
 
 class RobotDriver {
 private:
@@ -117,45 +114,14 @@ void simpleVis () {
 
   while (!viewer.wasStopped()) {
     viewer.showCloud (visu_pc);
-/*
-    char *intStr = itoa(capturas);
-    string numero = string(intStr);
-
-    pcl::io::savePCDFile ("nube" + numero + ".pcd", visu_pc, true);
-*/
-    capturas++;
     boost::this_thread::sleep (boost::posix_time::milliseconds(1000));
   }
 }
 
 void callback (const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& msg) {
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr nube (new pcl::PointCloud<pcl::PointXYZRGB>(*msg));
-/*
-  cout << "Puntos capturados: " << nube->size() << endl;
-
-  pcl::VoxelGrid<pcl::PointXYZRGB > voxelGrid;
-
-  voxelGrid.setInputCloud (nube);
-  voxelGrid.setLeafSize (0.05f, 0.05f, 0.05f); 
-
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr nubeVG (new pcl::PointCloud<pcl::PointXYZRGB>);
-  voxelGrid.filter (*nubeVG);
-
-  cout << "Puntos tras VG: " << nubeVG->size() << endl;
-
-  pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> filtroSOR;
-
-  filtroSOR.setInputCloud (nubeVG);
-  filtroSOR.setMeanK (100);
-  filtroSOR.setStddevMulThresh (0.25);
-
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr nubeSOR (new pcl::PointCloud<pcl::PointXYZRGB>);
-  filtroSOR.filter (*nubeSOR);
-
-  cout << "Puntos tras SOR: " << nubeSOR->size() << endl;
-
-  visu_pc = nubeSOR;
-  */
+  pcl::io::savePCDFile ("X" + std::to_string(capturas) + ".pcd", *nube, true);
+  capturas++;
   visu_pc = nube;
 }
 

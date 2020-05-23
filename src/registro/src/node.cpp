@@ -28,7 +28,7 @@
 	Parámetros por defecto
 */
 // relacionado con los ficheros
-const size_t numero_de_nubes = 6;
+const size_t numero_de_nubes = 32;
 const std::string raiz = "datos";
 const std::string nubes = raiz + "/nubes/";
 const std::string parametros = raiz + "/parametros/";
