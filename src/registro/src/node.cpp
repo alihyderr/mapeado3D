@@ -263,11 +263,11 @@ void computeIteration(
 
 	// Paso 8: Obtener la transformación total
 	puts("->Matriz trasnformación total Tt");
-	if (iteracion == 1)
-		Tt = Taux;
-	else
+	//if (iteracion == 1)
+	//	Tt = Taux;
+	//else
 		Tt = Tt * Taux;
-	iteracion++;
+	//iteracion++;
 	std::cout << Tt << '\n';
 
 	// Paso 9: Aplicar Tt a Ci+1
@@ -306,8 +306,8 @@ int main(int argc, char **argv) {
 	// Transformacion total Tt = I
 	Eigen::Matrix4f Tt;
 	Tt << 
-		1, 0, 0, 0,
-		0, 1, 0, 0,
+		-1, 0, 0, 0,
+		0, -1, 0, 0,
 		0, 0, 1, 0,
 		0, 0, 0, 1;
 
