@@ -263,17 +263,18 @@ void computeIteration(
 
 	// Paso 8: Obtener la transformación total
 	puts("->Matriz trasnformación total Tt");
-	//if (iteracion == 1)
-	//	Tt = Taux;
-	//else
-		Tt = Tt * Taux;
-	//iteracion++;
+	Tt = Tt * Taux;
+
+	if (iteracion == 1)
+		*M = *nube1;
+	
+	iteracion++;
 	std::cout << Tt << '\n';
 
 	// Paso 9: Aplicar Tt a Ci+1
 	puts("->Aplicar Tt");
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_out (new pcl::PointCloud<pcl::PointXYZRGB>);
-    pcl::transformPointCloud(*nube1, *cloud_out, Tt);
+    pcl::transformPointCloud(*nube2, *cloud_out, Tt);
 
 	*M += *cloud_out;
 }
