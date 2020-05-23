@@ -28,7 +28,7 @@
 	Parámetros por defecto
 */
 // relacionado con los ficheros
-const size_t numero_de_nubes = 32;
+const size_t numero_de_nubes = 6;
 const std::string raiz = "datos";
 const std::string nubes = raiz + "/nubes/";
 const std::string parametros = raiz + "/parametros/";
@@ -39,12 +39,13 @@ const int 	n_scales_per_octave = 4;
 const float min_contrast 		= 0.001f;
 // Parametros FPFH
 const double normal_estimation_radius 	= 0.05;
-const double fpfh_estimation_radius 	= 0.25;
+const double fpfh_estimation_radius 	= 0.07;
 // reject correspondences
 const double rejector_threshold 	= 0.025;
 const double rejector_maxIterations = 10000;
 const bool	 refineModel 			= true;
 
+int iteracion = 1;
 
 // Mapa 3D
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr M( new pcl::PointCloud<pcl::PointXYZRGB>() );
@@ -262,7 +263,11 @@ void computeIteration(
 
 	// Paso 8: Obtener la transformación total
 	puts("->Matriz trasnformación total Tt");
-	Tt = Tt * Taux;
+	if (iteracion == 1)
+		Tt = Taux;
+	else
+		Tt = Tt * Taux;
+	iteracion++;
 	std::cout << Tt << '\n';
 
 	// Paso 9: Aplicar Tt a Ci+1
@@ -298,7 +303,7 @@ int main(int argc, char **argv) {
 
 	boost::thread ts(magia);
 
-	// Tt = I
+	// Transformacion total Tt = I
 	Eigen::Matrix4f Tt;
 	Tt << 
 		1, 0, 0, 0,
@@ -318,7 +323,7 @@ int main(int argc, char **argv) {
 	for ( auto i = 1; i < t; ++i ) {
 		std::cout << RED << " Para i = " << i << ' ' << RESET << '\n';
 
-		// Cargamos los datos
+		// ENTRADA. Conjunto de datos X
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud1 (new pcl::PointCloud<pcl::PointXYZRGB>);
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud2 (new pcl::PointCloud<pcl::PointXYZRGB>);
 		pcl::io::loadPCDFile<pcl::PointXYZRGB> (nubes + "X" + std::to_string( i ) + ".pcd", *cloud1);
@@ -328,7 +333,7 @@ int main(int argc, char **argv) {
 		std::cout << "Ci.size()   = " << cloud1->size() << "\n";
 		std::cout << "Ci+1.size() = " << cloud2->size() << "\n";
 
-		// APLICAMOS VOXEL GRID
+		// VOXEL GRID para downsampling
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered1(new pcl::PointCloud<pcl::PointXYZRGB>);
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered2(new pcl::PointCloud<pcl::PointXYZRGB>);
 		vGrid.setInputCloud(cloud1);
@@ -340,7 +345,7 @@ int main(int argc, char **argv) {
 		std::cout << "Ci.size()   = " << cloud_filtered1->size() << "\n";
 		std::cout << "Ci+1.size() = " << cloud_filtered2->size() << "\n";
 
-		// APLICAMOS SOR
+		// SOR outliers removal
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr nubeSOR1 (new pcl::PointCloud<pcl::PointXYZRGB>);
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr nubeSOR2 (new pcl::PointCloud<pcl::PointXYZRGB>);
 		filtroSOR.setInputCloud (cloud_filtered1);
@@ -352,6 +357,7 @@ int main(int argc, char **argv) {
 		std::cout << "Ci.size()   = " << nubeSOR1->size() << "\n";
 		std::cout << "Ci+1.size() = " << nubeSOR2->size() << "\n";
 
+		// para i=1 hasta t-1 hacer
 		computeIteration( M, Tt, nubeSOR1, nubeSOR2 );
 	}
 
